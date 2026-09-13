@@ -345,7 +345,7 @@ const ensureDatabaseSchema = async () => {
   }
 
   try {
-    await db.query("ALTER TABLE jobs MODIFY COLUMN status ENUM('draft', 'active', 'published', 'scheduled', 'closed', 'filled', 'archived', 'suspended') DEFAULT 'draft'");
+    await db.query("ALTER TABLE jobs MODIFY COLUMN status VARCHAR(30) NOT NULL DEFAULT 'draft'");
     await db.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS rejection_reason TEXT NULL');
     await db.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS approved_by INT NULL');
     await db.query('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP NULL DEFAULT NULL');
@@ -1582,8 +1582,8 @@ async function ensureAuthColumns() {
       `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'jobs' AND COLUMN_NAME = 'status'`
     );
-    if (jobStatusColumns[0] && !jobStatusColumns[0].COLUMN_TYPE.includes("'active'")) {
-      await db.query("ALTER TABLE jobs MODIFY COLUMN status ENUM('draft', 'active', 'published', 'closed', 'filled', 'archived') DEFAULT 'draft'");
+    if (jobStatusColumns[0] && jobStatusColumns[0].COLUMN_TYPE.startsWith('enum')) {
+      await db.query("ALTER TABLE jobs MODIFY COLUMN status VARCHAR(30) NOT NULL DEFAULT 'draft'");
     }
   } catch (error) {
     console.warn('Auth column compatibility check skipped:', error.message);

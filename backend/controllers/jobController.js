@@ -23,7 +23,7 @@ async function createJob(req, res) {
   if (!title || !description || !jobType) return res.status(400).json({ success: false, message: 'title, description, and jobType are required.' });
   try {
     const job = await jobModel.createJob({ ...req.body, employerId: req.user.id });
-    return res.status(201).json({ success: true, job });
+    return res.status(201).json({ success: true, status: 'pending', message: 'Job submitted for admin approval.', job });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Unable to create job.' });
   }

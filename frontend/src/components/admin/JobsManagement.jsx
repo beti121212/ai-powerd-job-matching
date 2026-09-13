@@ -5,7 +5,7 @@ import { createAdminJob, deleteJob, getAdminJob, getAdminJobApplicants, getAdmin
 const emptyJob = { employer_id: '', title: '', description: '', category: '', job_type: 'full-time', experience_level: 'mid-level', location: '', work_mode: 'on-site', salary_min: '', salary_max: '', required_education: 'any', years_of_experience_min: 0, application_deadline: '', skills: '', status: 'pending' };
 const jobTypes = ['full-time', 'part-time', 'contract', 'internship', 'remote'];
 const levels = ['entry-level', 'mid-level', 'senior-level', 'executive'];
-const mapStatus = (status) => ({ published: 'active', pending_approval: 'pending', draft: 'pending', filled: 'active', closed: 'closed', archived: 'closed', rejected: 'rejected' }[status] || status || 'pending');
+const mapStatus = (status) => ({ published: 'active', pending: 'pending', pending_approval: 'pending', draft: 'pending', filled: 'active', closed: 'closed', archived: 'closed', rejected: 'rejected' }[status] || status || 'pending');
 const label = (value) => String(value || '').replace(/[-_]/g, ' ').replace(/^./, (letter) => letter.toUpperCase());
 const dateLabel = (value) => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
 const tone = { active: 'bg-emerald-50 text-emerald-700', pending: 'bg-amber-50 text-amber-700', closed: 'bg-slate-100 text-slate-600', rejected: 'bg-rose-50 text-rose-700' };

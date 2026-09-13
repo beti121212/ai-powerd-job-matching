@@ -54,6 +54,10 @@ const Login = () => {
     const normalizedRole = resolveUserRole({ email, role: role || sessionUser?.role || sessionUser?.userType });
     const pending = getPendingApplication();
     const pendingJobId = location.state?.jobId || pending?.jobId;
+    if (location.state?.intent === 'post-job') {
+      navigate('/explore-jobs', { replace: true, state: { openPostJob: true } });
+      return;
+    }
     const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
     const onboardingIncomplete = seekerRoles.includes(normalizedRole) && (
       sessionUser.onboardingRoleSelected === false ||
@@ -114,6 +118,7 @@ const Login = () => {
           state: {
             email: data.email || formData.emailOrPhone.trim().toLowerCase(),
             message: data.message,
+            intent: location.state?.intent,
           }
         });
         return;
@@ -123,7 +128,8 @@ const Login = () => {
         navigate('/verify-otp', {
           state: {
             email: data.email || formData.emailOrPhone.trim().toLowerCase(),
-            message: data.message || 'A login code was already sent to your email. Please enter it below to continue.'
+            message: data.message || 'A login code was already sent to your email. Please enter it below to continue.',
+            intent: location.state?.intent,
           }
         });
         return;
@@ -134,7 +140,8 @@ const Login = () => {
         navigate('/verify-otp', {
           state: {
             email: data.email || formData.emailOrPhone.trim().toLowerCase(),
-            message: `We sent a verification code to ${(data.email || formData.emailOrPhone).trim().toLowerCase()}.`
+            message: `We sent a verification code to ${(data.email || formData.emailOrPhone).trim().toLowerCase()}.`,
+            intent: location.state?.intent,
           }
         });
         showSuccess('Verification code sent successfully.');

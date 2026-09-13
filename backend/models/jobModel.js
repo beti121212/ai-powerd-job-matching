@@ -16,9 +16,31 @@ async function findJobById(id) {
 
 async function createJob(job) {
   const [result] = await db.execute(
-    `INSERT INTO jobs (employer_id, title, description, job_type, experience_level, location, work_mode, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'published')`,
-    [job.employerId, job.title, job.description, job.jobType, job.experienceLevel || 'mid-level', job.location || null, job.workMode || 'hybrid']
+    `INSERT INTO jobs (
+      employer_id, title, company_name, description, category, sector, job_type,
+      experience_level, location, work_mode, gender_preference, salary_min,
+      salary_max, currency, required_education, application_deadline,
+      required_skills, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    [
+      job.employerId,
+      job.title,
+      job.company || null,
+      job.description,
+      job.category || job.sector || null,
+      job.sector || null,
+      job.jobType,
+      job.experienceLevel || 'mid-level',
+      job.location || null,
+      job.workMode || 'hybrid',
+      job.gender || 'any',
+      job.salaryMin || null,
+      job.salaryMax || null,
+      job.currency || 'ETB',
+      job.education || 'any',
+      job.applicationDeadline || null,
+      job.requiredSkills || null,
+    ]
   );
   return findJobById(result.insertId);
 }

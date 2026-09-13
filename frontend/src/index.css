@@ -88,6 +88,10 @@ body {
   overflow-x: hidden;
 }
 
+.admin-sidebar button[aria-label="Logout"] {
+  display: none;
+}
+
 @media (max-width: 639px) {
   .admin-sidebar > div {
     padding: 1rem;
