@@ -20,7 +20,7 @@ export default function EditProfileModal({ profile, onClose, onSave, isSaving })
   const update = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
   const updatePersonal = (key, value) => update(key, value);
   const addEducation = () => update('education', [...(draft.education || []), { ...blank, id: Date.now() }]);
-  const addExperience = () => update('experience', [...(draft.experience || []), { id: Date.now(), jobTitle: '', company: '', employmentType: '', location: '', startDate: '', endDate: '', achievements: [] }]);
+  const addExperience = () => update('experience', [...(draft.experience || []), { id: Date.now(), jobTitle: '', company: '', employmentType: '', startDate: '', endDate: '', achievements: [] }]);
   const addCertification = () => update('certifications', [...(draft.certifications || []), { id: Date.now(), title: '', issuer: '', issueDate: '', expirationDate: '', credentialUrl: '' }]);
   const submit = (event) => { event.preventDefault(); if (!draft.name?.trim() && !draft.email?.trim()) { setError('Add at least your name or email before saving.'); return; } onSave(draft); };
   const field = (label, key, placeholder, type = 'text') => <label className="block text-sm font-semibold text-slate-700">{label}<input type={type} value={draft[key] || ''} onChange={(event) => updatePersonal(key, event.target.value)} placeholder={placeholder} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-normal text-slate-900 outline-none focus:border-[var(--brand-primary)]" /></label>;

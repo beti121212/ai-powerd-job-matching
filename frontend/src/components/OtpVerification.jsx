@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
-import { continueApplicationFlow, getNextOnboardingStep, getPendingApplication } from '../utils/applicationFlow';
+import { continueApplicationFlow, getPendingApplication } from '../utils/applicationFlow';
 import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Cpu, RefreshCw, ShieldCheck, Sparkles, Target } from 'lucide-react';
 
@@ -19,10 +19,16 @@ const OtpVerification = () => {
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+  const [info, setInfo] = useState(location.state?.message || '');
   const [loading, setLoading] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(48);
+  const [otpTimer, setOtpTimer] = useState(60);
   const otpInputRefs = useRef([]);
+
+  const formatOtpTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const remainingSeconds = (seconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${remainingSeconds}`;
+  };
 
   useEffect(() => {
     otpInputRefs.current[0]?.focus();
@@ -56,6 +62,11 @@ const OtpVerification = () => {
     setError('');
     setInfo('');
 
+    if (otpTimer === 0) {
+      setError('OTP code has expired. Please request a new one.');
+      return;
+    }
+
     const otpCode = otp.join('');
     if (otpCode.length !== 6) {
       setError('እባክዎን 6 ጊዜ የOTP ቁጥር ያስገቡ።');
@@ -65,56 +76,60 @@ const OtpVerification = () => {
     setLoading(true);
 
     try {
-      const { data } = await api.post('/verify-otp', { email, otp: otpCode });
-      if (data.token) localStorage.setItem('token', data.token);
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const verifiedUser = { ...currentUser, ...(data.user || {}), is_verified: true, otpVerified: true };
-      if (verifiedUser) {
-        localStorage.setItem('user', JSON.stringify(verifiedUser));
-        localStorage.setItem('currentUser', JSON.stringify(verifiedUser));
-      }
+      const { data } = await api.post('/verify-otp', { email, otp: otpCode, role: providedRole });
+      if (!data.token || !data.user) throw new Error('Authentication response was incomplete.');
+      const verifiedUser = {
+        ...data.user,
+        onboardingRoleSelected: data.user.onboardingRoleSelected ?? false,
+        onboardingCvUploaded: data.user.has_cv ?? false,
+        onboardingProfileCompleted: data.user.onboardingProfileCompleted ?? false,
+      };
       setSession({ token: data.token, user: verifiedUser });
 
-      const role = data.user?.role || providedRole;
-      if (data.requiresRoleSelection || !role || role === 'pending') {
+      const role = data.user.role || providedRole;
+      const requiresRoleSelection = data.requiresRoleSelection || !role || role === 'pending';
+      if (requiresRoleSelection) {
         const params = new URLSearchParams();
         if (userIdFromUrl) params.set('userId', userIdFromUrl);
         if (pendingJobId) params.set('jobId', pendingJobId);
         navigate(`/select-role${params.toString() ? `?${params.toString()}` : ''}`);
       } else if (['employer', 'company', 'recruiter'].includes(role)) {
-        navigate('/employee-info');
+        navigate('/employer/dashboard');
+      } else if (['admin', 'super_admin'].includes(role)) {
+        navigate('/admin/dashboard');
+      } else if (verifiedUser.has_cv === false || verifiedUser.onboarding_step === 'cv_upload') {
+        navigate('/seeker/cv-upload');
       } else if (pendingJobId) {
         continueApplicationFlow(navigate, { jobId: pendingJobId });
       } else {
-        navigate(getNextOnboardingStep());
+        navigate('/select-role');
       }
     } catch (err) {
-      if (otpCode === '123456') {
-        const user = {
-          id: userIdFromUrl || `demo-${Date.now()}`,
-          email: email || 'demo@example.com',
-          full_name: (email || 'demo@example.com').split('@')[0],
-          role: providedRole && providedRole !== 'pending' ? providedRole : 'job_seeker',
-          is_verified: true,
-          otpVerified: true,
-        };
-        localStorage.setItem('token', 'frontend-demo-token');
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        setSession({ token: 'frontend-demo-token', user });
-        if (pendingJobId) continueApplicationFlow(navigate, { jobId: pendingJobId });
-        else navigate(user.role === 'employer' ? '/employee-info' : getNextOnboardingStep());
-      } else {
-        setError(err.response?.data?.message || 'Demo OTP is 123456.');
-      }
+      setError(err.response?.data?.message || err.message || 'Invalid or expired OTP code.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResendOtp = () => {
-    setOtpTimer(48);
-    setInfo('OTP ኮድ ዳግም ተልኳል (Mock Mode Active)።');
+  const handleResendOtp = async () => {
+    if (otpTimer > 0) return;
+    try {
+      let response;
+      try {
+        response = await api.post('/send-otp', { email });
+      } catch (requestError) {
+        if (requestError.response?.status !== 404) throw requestError;
+        response = await api.post('/auth/resend-otp', { email });
+      }
+      if (!response.data?.success) throw new Error(response.data?.message || 'Unable to resend OTP.');
+      setOtpTimer(60);
+      setOtp(['', '', '', '', '', '']);
+      setInfo('A new verification code was sent to your email.');
+      setError('');
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 0);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Unable to resend OTP.');
+    }
   };
 
   return (
@@ -134,7 +149,7 @@ const OtpVerification = () => {
           <button type="button" onClick={() => navigate(-1)} className="mb-6 inline-flex items-center gap-2 text-xs font-bold text-slate-500 transition hover:text-slate-800"><ArrowLeft className="h-4 w-4" /> Back to details</button>
           <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Enter Verification Code</h2>
           <p className="mt-1 mb-6 text-xs font-semibold text-slate-500 sm:text-sm">We sent a 6-digit code to <span className="font-bold text-[var(--brand-deep)]">{email || 'your email'}</span></p>
-          <form onSubmit={handleSubmit} className="space-y-6"><div className="mx-auto flex max-w-sm items-center justify-between gap-2">{otp.map((digit, index) => <input key={index} type="text" inputMode="numeric" maxLength="1" value={digit} ref={(el) => (otpInputRefs.current[index] = el)} onChange={(e) => handleOtpChange(index, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(index, e)} className="h-12 w-10 rounded-xl border border-slate-300 bg-slate-100 text-center text-lg font-bold text-slate-900 outline-none transition focus:border-[var(--brand-primary)] focus:bg-white focus:ring-4 focus:ring-blue-500/10 sm:h-14 sm:w-12 sm:text-xl" aria-label={`OTP digit ${index + 1}`} />)}</div><div className="text-center text-xs font-semibold text-slate-500">{otpTimer > 0 ? <>Resend code in <span className="font-bold text-[var(--brand-deep)]">{otpTimer}s</span></> : <button type="button" onClick={handleResendOtp} className="inline-flex items-center gap-1.5 font-bold text-[var(--brand-deep)] hover:underline"><RefreshCw className="h-3.5 w-3.5" /> Resend Code Now</button>}</div><button type="submit" disabled={loading} className="w-full rounded-xl bg-[var(--brand-primary)] px-6 py-3.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-lg shadow-blue-500/25 transition hover:bg-[var(--brand-deep)] disabled:cursor-not-allowed disabled:opacity-70 sm:py-4">{loading ? 'Verifying...' : 'Verify Code'}</button></form>
+          <form onSubmit={handleSubmit} className="space-y-6"><div className="mx-auto flex max-w-sm items-center justify-between gap-2">{otp.map((digit, index) => <input key={index} type="text" inputMode="numeric" maxLength="1" value={digit} ref={(el) => (otpInputRefs.current[index] = el)} onChange={(e) => handleOtpChange(index, e.target.value)} onKeyDown={(e) => handleOtpKeyDown(index, e)} className="h-12 w-10 rounded-xl border border-slate-300 bg-slate-100 text-center text-lg font-bold text-slate-900 outline-none transition focus:border-[var(--brand-primary)] focus:bg-white focus:ring-4 focus:ring-blue-500/10 sm:h-14 sm:w-12 sm:text-xl" aria-label={`OTP digit ${index + 1}`} />)}</div><div className="text-center text-xs font-semibold text-slate-500">{otpTimer > 0 ? <>Resend code in <span className="font-bold text-[var(--brand-deep)]">{formatOtpTime(otpTimer)}</span></> : <span className="inline-flex items-center gap-1.5 font-bold text-red-600">OTP expired — <button type="button" onClick={handleResendOtp} className="inline-flex items-center gap-1.5 font-bold text-[var(--brand-deep)] hover:underline"><RefreshCw className="h-3.5 w-3.5" /> ኮድ እንደገና ላክ (Resend OTP)</button></span>}</div><button type="submit" disabled={loading || otpTimer === 0} className="w-full rounded-xl bg-[var(--brand-primary)] px-6 py-3.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-lg shadow-blue-500/25 transition hover:bg-[var(--brand-deep)] disabled:cursor-not-allowed disabled:opacity-70 sm:py-4">{loading ? 'Verifying...' : otpTimer === 0 ? 'OTP Expired' : 'Verify Code'}</button></form>
         </div>
       </div>
     </div>

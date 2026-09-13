@@ -16,8 +16,17 @@
   color: #475569;
 }
 
-.employer-workspace aside nav button > span.flex.h-6.w-6 {
-  display: none;
+.employer-workspace {
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.employer-workspace .employer-sidebar {
+  position: sticky;
+}
+
+.employer-workspace > .flex {
+  min-height: calc(100vh - 80px);
 }
 
 button,
@@ -41,20 +50,6 @@ select {
 
 .primary-button:hover {
   background: var(--brand-primary-hover);
-}
-
-aside[class*="pt-24"][class*="lg:sticky"] {
-  padding-top: 1.25rem;
-}
-
-aside[class*="pt-24"][class*="lg:sticky"] nav button {
-  padding-top: 0.625rem;
-  padding-bottom: 0.625rem;
-}
-
-aside[class*="pt-24"][class*="lg:sticky"] nav button:not([aria-current="page"]):hover {
-  background-color: #eff6ff;
-  color: #1d4ed8;
 }
 
 .accent-card {

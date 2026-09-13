@@ -1,0 +1,51 @@
+/* Trusted By Marquee Animation - Pixel Perfect Ticker */
+
+/* Main animation: scrolls logos from right to left infinitely */
+@keyframes marqueeLeft {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.trusted-by-marquee {
+  /* Animation: 35s linear infinite (smooth, continuous) */
+  animation: marqueeLeft 35s linear infinite;
+  min-width: max-content;
+  
+  /* GPU acceleration for smooth animation */
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
+  transform: translate3d(0, 0, 0);
+  
+  /* Ensure no gaps between repeated logo sets */
+  display: flex;
+  gap: inherit;
+}
+
+/* Pause animation on hover */
+.trusted-by-marquee[style*="animation-play-state: paused"] {
+  animation-play-state: paused;
+}
+
+/* Responsive animation speed */
+@media (max-width: 1024px) {
+  .trusted-by-marquee {
+    animation-duration: 40s;
+  }
+}
+
+@media (max-width: 768px) {
+  .trusted-by-marquee {
+    animation-duration: 35s;
+  }
+}
+
+@media (max-width: 640px) {
+  .trusted-by-marquee {
+    animation-duration: 30s;
+  }
+}

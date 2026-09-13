@@ -5,6 +5,8 @@ import ResumeSelector from '../components/jobs/ResumeSelector';
 import { useAuth } from '../context/AuthContext';
 import { getJobById } from '../services/jobService';
 import { clearPendingApplication, continueApplicationFlow, getApplicationForJob, getApplicationRequirements, getPendingApplication, recordApplication } from '../utils/applicationFlow';
+import { useToast } from '../hooks/useToast.js';
+import { scrollToFeedback } from '../utils/scrollHelper.js';
 
 function getStoredResumeList() {
   try {
@@ -21,6 +23,7 @@ export default function ApplyJob() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   const [job, setJob] = useState(null);
   const [resumes] = useState(getStoredResumeList);
@@ -85,6 +88,8 @@ export default function ApplyJob() {
     if (!job) return;
     if (!selectedResumeId) {
       setToast('Please select a resume before submitting.');
+      showError('Please select a resume before submitting.');
+      scrollToFeedback('error');
       return;
     }
 
@@ -106,10 +111,14 @@ export default function ApplyJob() {
       });
       clearPendingApplication();
       setToast('Application submitted successfully!');
+      showSuccess('Application submitted successfully!');
+      scrollToFeedback('top');
       window.setTimeout(() => navigate(`/applications/${application.id}`, { state: { application, success: true } }), 700);
     } catch (error) {
       console.error('Application submission failed', error);
       setToast('Unable to submit application. Please try again.');
+      showError('Unable to submit application. Please try again.');
+      scrollToFeedback('error');
     } finally {
       setSubmitting(false);
     }

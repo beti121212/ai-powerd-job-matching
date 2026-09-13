@@ -29,6 +29,15 @@ const JobDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const storedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  })();
+  const currentUser = user || storedUser || {};
+  const currentAuthentication = isAuthenticated || Boolean(localStorage.getItem("token"));
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +74,7 @@ const JobDetails = () => {
 
   // 2. Click Logic for "Login to Apply" / "Apply Now"
   const handleApplyAction = () => {
-    beginApplication(id, job, navigate, { isAuthenticated, role: user?.role, sourcePage: location.pathname, returnPath: location.pathname });
+    beginApplication(id, job, navigate, { isAuthenticated: currentAuthentication, role: currentUser.role, sourcePage: location.pathname, returnPath: location.pathname });
   };
 
   const handleCheckMatch = () => {
@@ -101,11 +110,20 @@ const JobDetails = () => {
     matchingSkills: job.matchBreakdown?.matchingSkills ?? job.matchingSkills ?? [],
     skillsToImprove: job.matchBreakdown?.skillsToImprove ?? job.skillsToImprove ?? [],
   };
-  const backLabel = "Back to Explore Jobs";
+  const backLabel = "Back to Find Jobs";
   const existingApplication = job && getApplicationForJob(id);
-  const applyButtonState = getApplyButtonState();
+  const applyButtonState = getApplyButtonState({
+    isAuthenticated: currentAuthentication,
+    role: currentUser.role,
+    otpVerified: currentUser.is_verified || currentUser.isVerified || currentUser.otpVerified,
+  });
   const deadline = job?.deadlineDate || job?.application_deadline;
-  const isExpired = deadline && new Date(deadline) < new Date();
+  const isExpired = deadline && (() => {
+    const deadlineDate = new Date(deadline);
+    if (Number.isNaN(deadlineDate.getTime())) return false;
+    deadlineDate.setHours(23, 59, 59, 999);
+    return deadlineDate < new Date();
+  })();
   const responsibilities = asList(job?.responsibilities);
   const requirements = asList(job?.requirements);
   const skills = asList(job?.skills || job?.requiredSkills || job?.tags);
@@ -148,7 +166,7 @@ const JobDetails = () => {
           onClick={() => navigate("/jobs")}
           className="inline-flex items-center gap-2 text-[#0871D1] hover:underline"
         >
-          <ArrowLeft size={16} /> ወደ Explore Jobs ተመለስ
+          <ArrowLeft size={16} /> ወደ Find Jobs ተመለስ
         </button>
       </div>
     );
@@ -270,9 +288,10 @@ const JobDetails = () => {
                 <p className="text-xs font-semibold text-slate-500">Application Deadline</p>
                 <p className="mt-1 font-bold text-slate-900">{formattedDeadline}</p>
               </div>
-              {isExpired ? <p className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-center text-sm font-bold text-red-700">Applications are closed.</p> : existingApplication ? (
+              {existingApplication ? (
                 <button type="button" onClick={() => navigate(`/applications/${existingApplication.id}`, { state: { application: existingApplication } })} className="mt-5 w-full rounded-xl border border-emerald-600 px-5 py-3.5 font-bold text-emerald-700 transition hover:bg-emerald-50">View Application</button>
-              ) : <button type="button" onClick={handleApplyAction} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0871D1] px-5 py-3.5 font-bold text-white shadow-sm transition hover:bg-[#075EAE]">
+              ) : isExpired ? <p className="mt-5 rounded-lg bg-red-50 px-4 py-3 text-center text-sm font-bold text-red-700">Applications are closed.</p>
+              : <button type="button" onClick={handleApplyAction} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0871D1] px-5 py-3.5 font-bold text-white shadow-sm transition hover:bg-[#075EAE]">
                 {applyButtonState.key === "login" ? <LogIn size={18} /> : <Send size={18} />}{applyButtonState.label}
               </button>}
             </div>

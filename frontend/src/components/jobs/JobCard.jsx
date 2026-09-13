@@ -1,10 +1,9 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Bookmark, MapPin, Briefcase, Clock3, Sparkles } from 'lucide-react';
 
 export default function JobCard({ job, saved, onToggleSave }) {
   return (
-    <article className="job-listing-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <article className="job-listing-card card-floating">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-600">{job.type || 'Full Time'}</p>

@@ -19,7 +19,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { getMockNotifications } from "../utils/interviewFlow";
-import BackToDashboard from "../components/BackToDashboard";
 
 const modules = {
   matches: {
@@ -775,7 +774,6 @@ export default function SeekerModulePage({ module: moduleProp }) {
                     : current.description}
             </p>
           </div>
-          <BackToDashboard />
         </div>
 
         {module === "matches" && (
@@ -999,7 +997,7 @@ export default function SeekerModulePage({ module: moduleProp }) {
                   onClick={() => navigate("/explore-jobs")}
                   className="mt-5 min-h-11 rounded-xl bg-brand px-4 py-2.5 text-sm font-black text-white hover:bg-brand-deep"
                 >
-                  Explore Jobs
+                  Find Jobs
                 </button>
               </div>
             )}

@@ -8,6 +8,7 @@ import type {
   UserProfile,
 } from '../types/dashboard';
 import { getUpcomingMockInterview } from '../utils/interviewFlow';
+import api from './api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const mockProfile: UserProfile = {
@@ -71,7 +72,31 @@ export async function fetchJobMatches(): Promise<JobMatch[]> {
 }
 
 export async function fetchRecentApplications(): Promise<JobApplication[]> {
-  return request('/seeker/dashboard/applications', mockApplications);
+  try {
+    const { data } = await api.get('/seeker/applications');
+    if (Array.isArray(data.applications)) return data.applications.map((item) => ({ ...item, role: item.role || item.title, company: item.company || item.company_name, status: String(item.status || '').toLowerCase() === 'under-review' ? 'Under Review' : item.status }));
+  } catch {
+    // Preserve the existing local demo fallback when the API is unavailable.
+  }
+  let localApplications: JobApplication[] = [];
+  try {
+    localApplications = JSON.parse(localStorage.getItem('mockApplications') || '[]');
+  } catch {
+    localApplications = [];
+  }
+  return [...localApplications, ...mockApplications].filter((item, index, list) => list.findIndex((candidate) => String(candidate.id) === String(item.id)) === index);
+}
+
+export async function fetchMatchedJobs(): Promise<any[]> {
+  const { data } = await api.get('/jobs/match');
+  return (data.jobs || []).map((job: any) => ({
+    ...job,
+    company: job.company || job.company_name,
+    salary: job.salary || (job.salary_min || job.salary_max ? `${job.currency || 'ETB'} ${job.salary_min || ''}${job.salary_min && job.salary_max ? ' - ' : ''}${job.salary_max || ''}` : 'Negotiable'),
+    type: job.type || job.job_type,
+    skills: job.skills || job.requiredSkills || [],
+    tags: job.tags || job.requiredSkills || [],
+  }));
 }
 
 export async function fetchUpcomingInterviews(): Promise<UpcomingInterview[]> {
@@ -89,3 +114,4 @@ export const getJobMatches = fetchJobMatches;
 export const getRecentApplications = fetchRecentApplications;
 export const getUpcomingInterviews = fetchUpcomingInterviews;
 export const getRecommendedJobs = fetchRecommendedJobs;
+export const getMatchedJobs = fetchMatchedJobs;

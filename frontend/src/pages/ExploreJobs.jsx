@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
   CheckCircle2,
@@ -26,9 +26,9 @@ import {
   Mail,
   KeyRound,
   ArrowRight,
+  ArrowLeft,
 } from "lucide-react";
 import { setPendingApplication } from "../utils/applicationFlow";
-import BackToDashboard from "../components/BackToDashboard";
 import api from "../services/api";
 
 // =========================================================================
@@ -1511,6 +1511,9 @@ function GoogleAiAssistantModal({ isOpen, onClose, contextJobs }) {
 // =========================================================================
 export default function ExploreJobsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const fromDashboard = location.state?.fromDashboard === true || searchParams.get('from') === 'dashboard';
   const [jobs, setJobs] = useState(() => {
     try {
       const employerJobs = JSON.parse(
@@ -1636,12 +1639,8 @@ export default function ExploreJobsPage() {
     sortBy,
   ]);
 
-  const toggleJobType = (type) => {
-    if (selectedJobTypes.includes(type)) {
-      setSelectedJobTypes(selectedJobTypes.filter((t) => t !== type));
-    } else {
-      setSelectedJobTypes([...selectedJobTypes, type]);
-    }
+  const selectJobType = (type) => {
+    setSelectedJobTypes(type ? [type] : []);
   };
 
   const showToast = (msg) => {
@@ -1837,7 +1836,7 @@ export default function ExploreJobsPage() {
   const visibleJobs = filteredJobs.slice(0, visibleCount);
 
   return (
-    <div className="jobs-page min-h-screen bg-[#F4F7FA] text-slate-900 font-sans flex flex-col">
+    <div className="jobs-page min-h-screen bg-white text-slate-900 font-sans flex flex-col">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#2B73A4] text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 border border-[#56A2D8]">
@@ -1852,7 +1851,7 @@ export default function ExploreJobsPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                Explore Jobs
+                Find Jobs
               </h1>
             </div>
             <p className="text-sm sm:text-base text-slate-600 font-medium mt-1.5">
@@ -1862,7 +1861,16 @@ export default function ExploreJobsPage() {
 
           {/* TOP RIGHT ACTION BUTTONS */}
           <div className="flex items-center gap-3 flex-wrap">
-            <BackToDashboard />
+            {fromDashboard && (
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[var(--brand-primary)] hover:text-[var(--brand-deep)]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Dashboard
+              </button>
+            )}
             {activeFiltersCount > 0 && (
               <button
                 type="button"
@@ -2018,32 +2026,21 @@ export default function ExploreJobsPage() {
                 </div>
 
                 {isJobTypeOpen && (
-                  <div className="mt-3 space-y-2.5">
-                    {JOB_TYPES.map((type) => {
-                      const isChecked = selectedJobTypes.includes(type);
-                      return (
-                        <label
-                          key={type}
-                          className="flex items-center gap-3.5 p-2 rounded-xl text-base font-semibold text-slate-900 cursor-pointer hover:bg-slate-50"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleJobType(type)}
-                            className="h-5 w-5 rounded border-slate-300 text-[#56A2D8] accent-[#56A2D8] cursor-pointer"
-                          />
-                          <span
-                            className={
-                              isChecked
-                                ? "text-[#2B73A4] font-bold"
-                                : "text-slate-800"
-                            }
-                          >
-                            {type}
-                          </span>
-                        </label>
-                      );
-                    })}
+                  <div className="mt-3">
+                    <select
+                      value={selectedJobTypes[0] || ""}
+                      onChange={(e) => selectJobType(e.target.value)}
+                      className={`w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-base font-semibold outline-hidden shadow-2xs transition hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer ${selectedJobTypes.length === 0 ? "text-slate-400" : "text-slate-900"}`}
+                    >
+                      <option value="" disabled hidden>
+                        Select job type
+                      </option>
+                      {JOB_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>

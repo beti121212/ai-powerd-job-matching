@@ -2,5 +2,27 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "jsonwebtoken": "^9.0.3"
-  }
+  },
+  "name": "ai-job-matching-platform",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yabsirademeke07-bot/AI-Job-Matching-Platform.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/yabsirademeke07-bot/AI-Job-Matching-Platform/issues"
+  },
+  "homepage": "https://github.com/yabsirademeke07-bot/AI-Job-Matching-Platform#readme"
 }

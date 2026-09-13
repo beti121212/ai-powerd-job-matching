@@ -68,25 +68,26 @@ export function hasCompletedCv() {
   return Boolean(resume.fileName || user.cvFileName);
 }
 
-export function getApplicationRequirements() {
+export function getApplicationRequirements(overrides = {}) {
   const pending = getPendingApplication();
   const user = readStoredObject('user', {});
   const role = String(user.role || user.userType || '').toLowerCase().replace(/[\s-]+/g, '_');
-  const isAuthenticated = Boolean(localStorage.getItem('token'));
-  const otpVerified = Boolean(user.is_verified || user.isVerified || user.otpVerified);
+  const isAuthenticated = overrides.isAuthenticated ?? Boolean(localStorage.getItem('token'));
+  const otpVerified = overrides.otpVerified ?? Boolean(user.is_verified || user.isVerified || user.otpVerified);
+  const effectiveRole = String(overrides.role || role).toLowerCase().replace(/[\s-]+/g, '_');
 
   return {
     pending,
     isAuthenticated,
     otpVerified,
-    role,
+    role: effectiveRole,
     hasResume: hasCompletedCv(),
     profileCompleted: hasCompletedProfile(),
   };
 }
 
-export function getApplyButtonState() {
-  const requirements = getApplicationRequirements();
+export function getApplyButtonState(overrides = {}) {
+  const requirements = getApplicationRequirements(overrides);
   const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
   const employerRoles = ['employer', 'company', 'recruiter'];
 
@@ -96,7 +97,6 @@ export function getApplyButtonState() {
   if (employerRoles.includes(requirements.role) || !seekerRoles.includes(requirements.role)) {
     return { key: 'role-blocked', label: 'Job Seeker Account Required' };
   }
-  if (!requirements.hasResume) return { key: 'cv', label: 'Upload CV to Apply' };
   if (!requirements.profileCompleted) return { key: 'profile', label: 'Complete Profile to Apply' };
   return { key: 'apply', label: 'Apply Now' };
 }
@@ -115,8 +115,7 @@ export function getApplicationState() {
 }
 
 export function getNextApplicationStep(jobId) {
-  if (!hasCompletedCv()) return `/cv-upload?jobId=${encodeURIComponent(jobId)}`;
-  if (!hasCompletedProfile()) return `/profile/me?jobId=${encodeURIComponent(jobId)}`;
+  if (!hasCompletedProfile()) return `/profile-completion?jobId=${encodeURIComponent(jobId)}`;
   return getApplicationSubmitPath(jobId);
 }
 
@@ -129,15 +128,18 @@ export function getNextOnboardingStep() {
   const role = String(user.role || user.userType || '').toLowerCase().replace(/[\s-]+/g, '_');
   const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
 
+  if (!user.otpVerified && !user.is_verified && !user.isVerified) return '/verify-otp';
   if (!role || role === 'pending') return '/select-role';
   if (!seekerRoles.includes(role)) return '/';
-  if (!hasCompletedCv()) return '/upload-cv';
-  if (!hasCompletedProfile()) return '/profile';
+  if (user.onboardingRoleSelected === false && (!user.role || user.role === 'pending')) return '/select-role';
+  if (user.has_cv === false || user.onboarding_step === 'cv_upload' || user.onboardingCvUploaded === false || (!user.onboardingCvUploaded && !hasCompletedCv())) return '/seeker/upload-cv';
+  if (user.onboardingProfileCompleted === false || (!user.onboardingProfileCompleted && !hasCompletedProfile())) return '/seeker/personal-info';
+  if (!hasCompletedProfile()) return '/seeker/personal-info';
   return '/dashboard';
 }
 
 export function continueApplicationFlow(navigate, details = {}) {
-  const requirements = getApplicationRequirements();
+  const requirements = getApplicationRequirements(details);
   const pendingJobId = requirements.pending?.jobId || details.jobId;
 
   if (!pendingJobId) return false;
@@ -162,7 +164,7 @@ export function continueApplicationFlow(navigate, details = {}) {
     return 'RESUME_REQUIRED';
   }
   if (!requirements.profileCompleted) {
-    navigate(`/profile/me?jobId=${encodeURIComponent(pendingJobId)}`);
+    navigate(`/profile-completion?jobId=${encodeURIComponent(pendingJobId)}`);
     return 'PROFILE_REQUIRED';
   }
 
@@ -195,7 +197,7 @@ export function beginApplication(jobId, job, navigate, details = {}) {
     return 'ALREADY_APPLIED';
   }
   setPendingApplication(jobId, job, details);
-  return continueApplicationFlow(navigate, { jobId });
+  return continueApplicationFlow(navigate, { ...details, jobId });
 }
 
 export function saveMockApplication(application) {

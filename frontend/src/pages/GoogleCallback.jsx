@@ -1,48 +1,66 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getUserDestination } from '../utils/authSession';
 
 export default function GoogleCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // 1. ከ Backend URL (Query Parameters) ላይ መረጃዎችን ማንበብ
     const token = searchParams.get('token');
-    const role = searchParams.get('role');
-    const userId = searchParams.get('userId');
+    const encodedUser = searchParams.get('user');
+    const step = searchParams.get('step');
 
-    if (token) {
-      // Save token under canonical [token](http://_vscodecontentref_/10) key
-      localStorage.setItem('token', token);
-
-      // JWT Token በ LocalStorage ውስጥ ማስቀመጥ
-      localStorage.setItem('authToken', token);
-
-      // 2. ተጠቃሚው አዲስ ከሆነ (Role ገና ካልመረጠ) -> ወደ Role Selection Step 3 መላክ
-      if (role === 'pending' || !role) {
-        navigate('/register', { 
-          replace: true,
-          state: { 
-            initialStep: 3, 
-            userId: userId 
-          } 
-        });
-      } else {
-        // 3. ቀድሞ የተመዘገበ user ከሆነ (Role አለው) -> በቀጥታ ወደ ሚናው Dashboard መውሰድ
-        const targetRole = role === 'job_seeker' ? 'seeker' : role;
-        
-        localStorage.setItem('user', JSON.stringify({ id: userId, role: targetRole }));
-
-        if (targetRole === 'employer') {
-          navigate('/employer-dashboard', { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
-      }
-    } else {
-      // Token ካልተገኘ ወደ Login ገጽ ይመልሳል
+    if (!token) {
       navigate('/login?error=auth_failed', { replace: true });
+      return;
     }
+
+    localStorage.setItem('token', token);
+    localStorage.setItem('authToken', token);
+
+    let normalizedUser = null;
+
+    if (encodedUser) {
+      try {
+        const parsedUser = JSON.parse(decodeURIComponent(encodedUser));
+        normalizedUser = {
+          ...parsedUser,
+          role: parsedUser.role || 'job_seeker',
+          onboardingRoleSelected: parsedUser.onboardingRoleSelected ?? false,
+          onboardingCvUploaded: parsedUser.onboardingCvUploaded ?? false,
+          onboardingProfileCompleted: parsedUser.onboardingProfileCompleted ?? false,
+          isVerified: !!(parsedUser.isVerified ?? parsedUser.is_verified),
+          auth_provider: parsedUser.auth_provider || 'google',
+        };
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
+      } catch (error) {
+        console.error('Failed to parse Google callback user payload:', error);
+      }
+    }
+
+    const stepMap = {
+      select_role: '/select-role',
+      'seeker/cv-upload': '/seeker/cv-upload',
+      'seeker/personal-info': '/seeker/personal-info',
+      'employer/onboarding': '/employer/onboarding',
+      'employer/dashboard': '/employer/dashboard',
+      dashboard: '/dashboard',
+      'seeker/dashboard': '/seeker/dashboard',
+    };
+
+    if (step && stepMap[step]) {
+      navigate(stepMap[step], { replace: true });
+      return;
+    }
+
+    if (normalizedUser) {
+      const destination = getUserDestination(normalizedUser);
+      navigate(destination || '/select-role', { replace: true });
+      return;
+    }
+
+    navigate('/select-role', { replace: true });
   }, [navigate, searchParams]);
 
   return (

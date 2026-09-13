@@ -45,7 +45,7 @@ const sectionTitles = {
     subtitleAm: "የድር ጣቢያ ልማት፣ የሞባይል ተስማሚ ዲዛይን እና የኤአይ ስራዎች",
   },
   jobs: {
-    title: "Explore Jobs & Vacancies",
+    title: "Find Jobs & Vacancies",
     titleAm: "ስራዎችን ፈልግ እና ክፍት የስራ መደቦች",
     subtitle: "Discover your next career role with multi-sector filters and instant applications",
     subtitleAm: "በዘርፍ፣ በደመወዝ፣ በልምድ ደረጃ እና በስራ ሁኔታ የተጣሩ ክፍት የስራ እድሎች",

@@ -6,4 +6,5 @@ export {
   getRecentApplications,
   getUpcomingInterviews,
   getRecommendedJobs,
+  getMatchedJobs,
 } from './dashboardApi';

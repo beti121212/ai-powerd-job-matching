@@ -2,30 +2,38 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, FileText, Send } from 'lucide-react';
 import api from '../services/api';
+import { useToast } from '../hooks/useToast.js';
+import { scrollToFeedback } from '../utils/scrollHelper.js';
 
 export default function ApplicationSubmit() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [coverNote, setCoverNote] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
-
-  let job = null;
-  try {
-    job = JSON.parse(localStorage.getItem('pendingApplicationJob') || 'null');
-  } catch {
-    job = null;
-  }
+  const job = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('pendingApplicationJob') || 'null');
+    } catch {
+      return null;
+    }
+  })();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     try {
-      await api.post(`/jobs/${id}/applications`, { coverLetter: coverNote });
+      await api.post('/applications', { jobId: id, resumeSnapshot: { coverLetter: coverNote } });
       setSubmitted(true);
-      window.setTimeout(() => navigate('/dashboard', { state: { activeTab: 'applications' } }), 900);
+      showSuccess('✓ Application Submitted Successfully! Taking you to your dashboard...');
+      scrollToFeedback('top');
+      window.setTimeout(() => navigate('/dashboard', { state: { activeTab: 'applications' } }), 1500);
     } catch (requestError) {
-      setError(requestError?.response?.data?.message || 'Unable to submit your application.');
+      const message = requestError?.response?.data?.message || 'Unable to submit your application.';
+      setError(message);
+      showError(message);
+      scrollToFeedback('error');
     }
   };
 

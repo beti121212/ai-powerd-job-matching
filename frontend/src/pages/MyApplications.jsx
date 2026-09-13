@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMockApplications } from "../utils/interviewFlow";
-import BackToDashboard from "../components/BackToDashboard";
 
 const tabs = [
   "All",
@@ -20,16 +19,17 @@ const normalizeStatus = (value) => {
     status === "submitted" ||
     status === "applied" ||
     status === "pending" ||
-    status === "under review" ||
     status === "in review"
   )
     return "Pending";
+  if (status === "under review") return "Under Review";
   if (status === "interview scheduled") return "Interview";
   return status.replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
 const statusStyles = {
   Pending: "bg-amber-50 text-amber-800 ring-amber-200",
+  "Under Review": "bg-amber-50 text-amber-800 ring-amber-200",
   Shortlisted: "bg-blue-50 text-blue-800 ring-blue-200",
   Interview: "bg-violet-50 text-violet-800 ring-violet-200",
   Hired: "bg-emerald-50 text-emerald-800 ring-emerald-200",
@@ -93,7 +93,7 @@ export default function MyApplications() {
   const summary = useMemo(
     () => ({
       All: applications.length,
-      Pending: applications.filter(({ status }) => status === "Pending").length,
+      Pending: applications.filter(({ status }) => ["Pending", "Under Review"].includes(status)).length,
       Shortlisted: applications.filter(({ status }) => status === "Shortlisted")
         .length,
       Interview: applications.filter(({ status }) => status === "Interview")
@@ -108,7 +108,7 @@ export default function MyApplications() {
   const filteredApplications =
     activeTab === "All"
       ? applications
-      : applications.filter(({ status }) => status === activeTab);
+      : applications.filter(({ status }) => activeTab === "Pending" ? ["Pending", "Under Review"].includes(status) : status === activeTab);
 
   return (
     <main className="information-page min-h-[70vh] bg-slate-50 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -119,7 +119,6 @@ export default function MyApplications() {
               <h1 className="text-3xl font-black text-slate-900">My Applications</h1>
               <p className="mt-2 text-sm text-slate-500">Track and manage your job applications in one place.</p>
             </div>
-            <BackToDashboard />
           </div>
         </header>
 
@@ -191,7 +190,7 @@ export default function MyApplications() {
                 onClick={() => navigate("/explore-jobs")}
                 className="mt-5 rounded-xl bg-[var(--brand-primary)] px-5 py-3 text-sm font-bold text-white hover:bg-[var(--brand-primary-hover)]"
               >
-                Explore Jobs
+                Find Jobs
               </button>
             </div>
           )}

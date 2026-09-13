@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import BackToDashboard from "../components/BackToDashboard";
 import {
   emptyProfile,
   getProfile,
@@ -201,7 +200,6 @@ export default function MyProfile() {
               My Profile
             </h1>
           </div>
-          <BackToDashboard />
           <button
             type="button"
             onClick={load}

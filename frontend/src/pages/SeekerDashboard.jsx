@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, User, Target, Search, Bookmark,
   ClipboardList, Bell, Settings, LogOut, Sparkles, CheckCircle2,
-  AlertTriangle, MapPin, Briefcase, DollarSign, Send, Globe, Lightbulb
+  AlertTriangle, MapPin, Briefcase, DollarSign, Send, Globe, Lightbulb, Brain
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import useSeekerDashboard from '../hooks/useSeekerDashboard';
@@ -406,7 +406,7 @@ export default function SeekerDashboard() {
         </main>
       </div>
 
-    </div>
       {logoutOpen && <LogoutFlowModals user={logoutSession?.user} token={logoutSession?.token} logout={logout} setSession={setSession} navigate={navigate} onClose={() => setLogoutOpen(false)} />}
+    </div>
   );
 }

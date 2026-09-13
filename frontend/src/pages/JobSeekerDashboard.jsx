@@ -14,6 +14,7 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
+import MatchedJobsPanel from "../components/dashboard/MatchedJobsPanel";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import LogoutFlowModals from "../components/LogoutFlowModals";
@@ -22,12 +23,14 @@ import {
   getJobMatches,
   getRecentApplications,
   getRecommendedJobs,
+  getMatchedJobs,
   getUpcomingInterviews,
 } from "../services/dashboardApi";
-import AIJobMatches from "../components/dashboard/AIJobMatches";
 import RecentApplications from "../components/dashboard/RecentApplications";
 import UpcomingInterview from "../components/dashboard/UpcomingInterview";
 import RecommendedJobs from "../components/dashboard/RecommendedJobs";
+import RecommendedJobsFeed from "../components/candidate/RecommendedJobsFeed";
+import seekerImage from "./images/seeker.jpg";
 
 function useResource(loader) {
   const [state, setState] = useState({
@@ -66,11 +69,15 @@ export default function JobSeekerDashboard() {
     useCallback(() => getUpcomingInterviews(), []),
   );
   const recommended = useResource(useCallback(() => getRecommendedJobs(), []));
-  const [savedJobs, setSavedJobs] = useState(() =>
-    JSON.parse(localStorage.getItem("savedJobs") || "[]"),
-  );
+  const matchedJobs = useResource(useCallback(() => getMatchedJobs(), []));
+  useEffect(() => {
+    const refreshMatches = () => matchedJobs.retry();
+    window.addEventListener("profileUpdated", refreshMatches);
+    return () => window.removeEventListener("profileUpdated", refreshMatches);
+  }, [matchedJobs.retry]);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [logoutSession, setLogoutSession] = useState(null);
+  const [activeTab, setActiveTab] = useState("matched");
   const profile = summary.data?.profile || {
     name: user?.name || user?.full_name || "User",
     profileCompletion: 0,
@@ -78,16 +85,8 @@ export default function JobSeekerDashboard() {
   };
   const displayName = user?.name || user?.full_name || user?.email || profile.name || "User";
   const avatarUrl = user?.avatarUrl || user?.avatar_url || profile.avatarUrl;
-  const toggleSave = (id) =>
-    setSavedJobs((current) => {
-      const next = current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id];
-      localStorage.setItem("savedJobs", JSON.stringify(next));
-      return next;
-    });
   const refreshAll = () =>
-    [summary, matches, applications, interviews, recommended].forEach(
+    [summary, matches, applications, interviews, recommended, matchedJobs].forEach(
       (resource) => resource.retry(),
     );
   const joinInterview = (url) =>
@@ -113,7 +112,6 @@ export default function JobSeekerDashboard() {
   const upcomingInterview =
     interviews.data?.find((item) => item.status === "Scheduled") || null;
   const recentApplications = applicationItems.slice(0, 5);
-  const matchPreview = (matches.data || []).slice(0, 3);
   const recommendationPreview = (recommended.data || []).slice(0, 3);
   const nextAction =
     profile.profileCompletion < 80
@@ -138,8 +136,8 @@ export default function JobSeekerDashboard() {
   const navItems = [
     ["Dashboard", "/dashboard", LayoutDashboard],
     ["My Profile", "/profile", User],
-    ["My Resume", "/resume", FileText],
-    ["Explore Jobs", "/explore-jobs", Search],
+    ["View Resume", "/resume", FileText],
+    ["Find Jobs", "/explore-jobs", Search],
     ["AI Job Matches", "/ai-matches", Target],
     ["Saved Jobs", "/saved-jobs", Bookmark],
     ["My Applications", "/applications", ClipboardList],
@@ -205,34 +203,33 @@ export default function JobSeekerDashboard() {
       </aside>
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl space-y-7">
-          <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900">Dashboard</h1>
-              <p className="mt-2 text-base font-semibold text-slate-700">
-                Welcome back,{" "}
-                {profile.name || user?.name || user?.full_name || "Job Seeker"}.
+          <section
+            className="relative isolate overflow-hidden rounded-2xl bg-slate-900 px-6 py-10 shadow-sm sm:px-10 sm:py-14"
+            style={{ backgroundImage: `url(${seekerImage})`, backgroundPosition: "center" }}
+            aria-labelledby="seeker-dashboard-title"
+          >
+            <div className="absolute inset-0 -z-10 bg-slate-950/65" aria-hidden="true" />
+            <div className="relative max-w-2xl text-white">
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-cyan-200">
+                Job seeker dashboard
               </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Here is an overview of your job search activity.
+              <h1 id="seeker-dashboard-title" className="mt-3 text-3xl font-black sm:text-4xl">
+                Find the right opportunity for your next chapter
+              </h1>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-100 sm:text-base">
+                Welcome back, {profile.name || user?.name || user?.full_name || "Job Seeker"}. Track your applications, explore AI-matched jobs, and move your career forward.
               </p>
             </div>
-            <div className="flex flex-col gap-3 self-start sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={() => navigate("/explore-jobs")}
-                className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[var(--brand-primary)] px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[var(--brand-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2"
-              >
-                Find Jobs
-              </button>
+            <div className="relative mt-7 flex flex-col gap-3 sm:absolute sm:right-8 sm:top-8 sm:mt-0 sm:flex-row sm:items-center">
               <button
                 type="button"
                 onClick={refreshAll}
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm"
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-3 py-2 text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/25"
               >
                 <RefreshCw className="h-4 w-4" /> Refresh
               </button>
             </div>
-          </header>
+          </section>
           {summary.error && (
             <div className="flex items-center gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-700">
               <AlertCircle className="h-4 w-4" /> {summary.error}
@@ -261,8 +258,9 @@ export default function JobSeekerDashboard() {
             >
               Application Overview
             </h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {[
+                ["Active Applications", applicationSummary.pending, "pending"],
                 ["Total Applications", applicationSummary.total, ""],
                 ["Pending", applicationSummary.pending, "pending"],
                 ["Shortlisted", applicationSummary.shortlisted, "shortlisted"],
@@ -287,6 +285,19 @@ export default function JobSeekerDashboard() {
               ))}
             </div>
           </section>
+          <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-2" aria-label="Seeker dashboard sections">
+            {[["matched", "Matched Jobs (AI)"], ["explore", "Explore Jobs"], ["applications", "My Applications"]].map(([tab, label]) => (
+              <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`rounded-xl px-4 py-2.5 text-sm font-black transition ${activeTab === tab ? "bg-[var(--brand-primary)] text-white shadow-sm" : "bg-white text-slate-600 hover:bg-[var(--brand-soft)]"}`}>
+                {label}{tab === "applications" && ` (${applicationSummary.total})`}
+              </button>
+            ))}
+          </nav>
+          {activeTab === "matched" && <MatchedJobsPanel jobs={matchedJobs.data || []} onApplicationSubmitted={() => { applications.retry(); matchedJobs.retry(); }} />}
+          {activeTab === "explore" && <>
+            <RecommendedJobsFeed onViewDetails={(id) => navigate(`/jobs/${id}`)} />
+            <RecommendedJobs jobs={recommendationPreview} onViewDetails={(id) => navigate(`/jobs/${id}`)} onViewAll={() => navigate("/explore-jobs?from=dashboard")} isLoading={recommended.isLoading} error={recommended.error} onRetry={recommended.retry} />
+          </>}
+          {activeTab === "applications" && <RecentApplications applications={recentApplications} onViewDetails={(id) => navigate(`/applications/${id}`)} onViewAll={() => navigate("/applications")} isLoading={applications.isLoading} error={applications.error} onRetry={applications.retry} />}
           {interviews.isLoading ? (
             <div className="h-28 animate-pulse rounded-xl bg-slate-200" />
           ) : upcomingInterview ? (
@@ -314,34 +325,6 @@ export default function JobSeekerDashboard() {
               </p>
             </section>
           )}
-          <RecentApplications
-            applications={recentApplications}
-            onViewDetails={(id) => navigate(`/applications/${id}`)}
-            onViewAll={() => navigate("/applications")}
-            isLoading={applications.isLoading}
-            error={applications.error}
-            onRetry={applications.retry}
-          />
-          {!matches.isLoading && (
-            <AIJobMatches
-              jobs={matchPreview}
-              savedJobs={savedJobs}
-              onSave={toggleSave}
-              onViewDetails={(id) => navigate(`/jobs/${id}`)}
-              onViewAll={() => navigate("/ai-matches")}
-              isLoading={false}
-              error={matches.error}
-              onRetry={matches.retry}
-            />
-          )}
-          <RecommendedJobs
-            jobs={recommendationPreview}
-            onViewDetails={(id) => navigate(`/jobs/${id}`)}
-            onViewAll={() => navigate("/explore-jobs")}
-            isLoading={recommended.isLoading}
-            error={recommended.error}
-            onRetry={recommended.retry}
-          />
         </div>
       </main>
       {logoutOpen && <LogoutFlowModals

@@ -1,5 +1,5 @@
-import { ArrowLeft, ExternalLink, MapPin, Phone } from "lucide-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { ExternalLink, MapPin, Phone } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import { getMockApplications, getMockInterview } from "../utils/interviewFlow";
 
 const formatDate = (value) =>
@@ -14,18 +14,6 @@ const formatDate = (value) =>
 export default function InterviewDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const backPath =
-    location.state?.sourcePath ||
-    (location.state?.source === "notifications"
-      ? "/notifications"
-      : "/applications");
-  const backLabel =
-    backPath === "/notifications"
-      ? "Back to Notifications"
-      : backPath === "/dashboard"
-        ? "Back to Dashboard"
-        : "Back to My Applications";
   const interview =
     getMockInterview(id) ||
     (id === "interview-301"
@@ -72,13 +60,6 @@ export default function InterviewDetails() {
   return (
     <main className="information-page min-h-[70vh] bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <button
-          type="button"
-          onClick={() => navigate(backPath)}
-          className="mb-5 inline-flex items-center gap-2 font-bold text-[var(--brand-deep)]"
-        >
-          <ArrowLeft className="h-4 w-4" /> {backLabel}
-        </button>
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <p className="text-xs font-bold uppercase tracking-wider text-[var(--brand-deep)]">
             Interview invitation

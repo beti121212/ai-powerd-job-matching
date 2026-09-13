@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { clearActiveSession, getStoredAccounts, getUserDestination, persistSession, readStoredUser } from '../utils/authSession';
+import API from '../services/api';
+import { clearActiveSession, persistSession, readStoredUser } from '../utils/authSession';
 
 const AuthContext = createContext({
   user: null,
@@ -23,21 +24,13 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [loading, setLoading] = useState(false);
 
-  const login = async ({ email }) => {
-    const existingUser = getStoredAccounts().find((account) => account.email === email) || readStoredUser();
-    const nextUser = existingUser?.email === email ? existingUser : {
-      id: existingUser?.id || `frontend-${Date.now()}`,
-      email,
-      full_name: existingUser?.full_name || email.split('@')[0],
-      role: existingUser?.role || 'job_seeker',
-      is_verified: true,
-      onboardingComplete: existingUser?.onboardingComplete ?? true,
-    };
-    const session = { token: existingUser?.token || 'frontend-demo-token', user: nextUser };
+  const login = async ({ email, password }) => {
+    const { data } = await API.post('/login', { email, password });
+    const session = { token: data.token, user: data.user };
     persistSession(session);
     setToken(session.token);
     setUser(session.user);
-    return { ...session, destination: getUserDestination(nextUser) };
+    return session;
   };
 
   const setSession = (session) => {

@@ -1,143 +1,115 @@
- import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles, ArrowRight, Briefcase } from 'lucide-react';
-import { TypeAnimation } from 'react-type-animation';
+import { Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useRef, useState } from 'react';
+import peopleImg from '../../pages/images/peoples.jpg';
 
-import homeImg from '../../pages/images/home.jpg';
-
-export default function HeroSection({ searchTitle = '', setSearchTitle, handleSearch, isLoggedIn = false }) {
+export default function HeroSection() {
   const navigate = useNavigate();
+  const headlineRef = useRef(null);
+  const [hoveredLine, setHoveredLine] = useState(null);
 
-  // 🎯 Start Now Logic:
+  //  Navigation Handlers
   const handleStartNow = () => {
-    if (isLoggedIn) {
-      navigate('/seeker-dashboard');
-    } else {
-      navigate('/register');
-    }
+    navigate('/register');
   };
 
-  // 🎯 Explore All Jobs Logic:
-  // Navbar ላይ ካለው /jobs ጋር እንዲገናኝ ተስተካክሏል
   const handleExploreJobs = () => {
     navigate('/jobs');
   };
 
-  // 🎯 Search Logic:
-  const onSearchSubmit = (e) => {
-    e.preventDefault();
-    if (typeof handleSearch === 'function') {
-      handleSearch(e);
-    } else {
-      navigate(`/jobs?query=${encodeURIComponent(searchTitle || '')}`);
-    }
-  };
-
   return (
-    <section className="relative bg-gradient-to-b from-blue-50/70 via-indigo-50/30 to-slate-50 text-slate-900 py-16 px-6 md:py-24 overflow-hidden border-b border-slate-200/80">
+    <section className="relative w-full min-h-[92vh] overflow-hidden bg-slate-900">
       
-      {/* Soft Background Lights */}
-      <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-blue-400/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-indigo-400/10 rounded-full blur-3xl pointer-events-none" />
+      {/* BACKGROUND LAYER - Hero Image (lowest z-index) */}
+      <div className="absolute inset-0 z-0 w-full h-full">
+        <img
+          src={peopleImg}
+          alt="Hero Background"
+          className="w-full h-full object-cover object-center pointer-events-none select-none"
+        />
+      </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10">
-        
-        {/* Left Side Content */}
-        <div className="lg:col-span-6 xl:col-span-5">
-          <span className="inline-flex items-center gap-2 bg-blue-100/80 text-blue-700 border border-blue-200/80 text-xs font-bold px-4 py-2 rounded-full mb-6 shadow-xs">
-            <Sparkles className="w-4 h-4 text-blue-600" />
-            #1 Ethiopian AI-Powered Tech Career Platform
-          </span>
+      {/* OVERLAY LAYER - Dark Gradient for Text Legibility (middle z-index) */}
+      <div className="absolute inset-0 z-10 bg-linear-to-r from-slate-950/35 via-blue-950/30 to-slate-950/40" />
 
-          <div className="max-w-2xl text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold tracking-tight mb-6 leading-[1.08] text-slate-950 min-h-[112px] sm:min-h-[132px]">
-            <TypeAnimation
-              sequence={[
-                'Find Your Dream Tech Job With AI Matching Precision',
-                2000,
-                'Connect With Better Tech Opportunities Faster',
-                500,
-              ]}
-              wrapper="h1"
-              speed={50}
-              repeat={Infinity}
-              cursor={true}
-              className="bg-gradient-to-r from-slate-900 via-blue-700 to-indigo-600 bg-clip-text text-transparent inline-block"
-            />
+      {/* FOREGROUND LAYER - Content (highest z-index) */}
+      <div className="relative z-20 w-full min-h-[92vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
+        <div className="w-full max-w-5xl mx-auto text-center space-y-6">
+          
+          {/* Brand Pill Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/30 border border-blue-400/50 text-blue-200 rounded-full text-xs sm:text-sm font-black tracking-wide uppercase shadow-lg backdrop-blur-md">
+            <Sparkles className="w-4 h-4 text-sky-400" />
+            <span>AI-Powered Job Matching Platform</span>
           </div>
 
-          <p className="max-w-xl text-slate-700 text-base md:text-lg mb-8 leading-8 font-medium">
-            Welcome to the modern way of tech hiring in Ethiopia. Upload your CV to get an instant AI-powered compatibility analysis for top developer roles, or search active job opportunities across leading technology companies directly.
+          {/* High-Contrast, Big & Bold Headline with Line-by-Line 3D Pop-Out Effect */}
+          <div ref={headlineRef} className="perspective">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15]">
+              {/* Line 1: Find Your Dream Job with - Full line pops forward */}
+              <motion.div
+                onMouseEnter={() => setHoveredLine(1)}
+                onMouseLeave={() => setHoveredLine(null)}
+                animate={{
+                  scale: hoveredLine === 1 ? 1.18 : 1,
+                }}
+                transition={{ type: 'spring', stiffness: 200, damping: 12, mass: 0.5 }}
+                className={`inline-block cursor-pointer transition-all ${
+                  hoveredLine === 1
+                    ? 'drop-shadow-[0_10px_32px_rgba(0,0,0,1)]'
+                    : 'drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]'
+                }`}
+              >
+                <span className="text-white">
+                  Find Your Dream Job with <br className="hidden sm:inline" />
+                </span>
+              </motion.div>
+
+              {/* Line 2: Intelligent AI Precision - Full line pops forward with glowing shadow */}
+              <motion.div
+                onMouseEnter={() => setHoveredLine(2)}
+                onMouseLeave={() => setHoveredLine(null)}
+                animate={{
+                  scale: hoveredLine === 2 ? 1.22 : 1,
+                }}
+                transition={{ type: 'spring', stiffness: 200, damping: 12, mass: 0.5 }}
+                className={`inline-block cursor-pointer transition-all ${
+                  hoveredLine === 2
+                    ? 'drop-shadow-[0_12px_40px_rgba(0,200,255,1)]'
+                    : 'drop-shadow-[0_4px_16px_rgba(0,200,255,0.6)]'
+                }`}
+              >
+                <span className="text-sky-300">
+                  Intelligent AI Precision
+                </span>
+              </motion.div>
+            </h1>
+          </div>
+ {/* Clean, Readable Subtitle (Pure High-Contrast White) */}
+          <p className="text-sm sm:text-base lg:text-lg text-slate-100 font-semibold max-w-2xl mx-auto leading-relaxed drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
+            Connect with top verified employers across Ethiopia. Upload your CV and let AI instantly match and score opportunities tailored to your career.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8">
-            {/* Start Now Button */}
+          {/* Dual Call-to-Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 pt-6 justify-center">
+            {/* Primary: Start Now Button */}
             <button
               onClick={handleStartNow}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm sm:text-base px-8 py-3.5 rounded-2xl transition-all duration-300 shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 cursor-pointer flex items-center justify-center gap-2.5 active:scale-95"
+              className="h-14 px-10 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-black text-base sm:text-lg rounded-2xl shadow-xl shadow-blue-600/40 transition-all cursor-pointer"
             >
-              <Sparkles className="w-4 h-4" />
-              <span>Start Now</span>
-              <ArrowRight className="w-4 h-4" />
+              Start Now
             </button>
- {/* Explore All Jobs Button - ቀጥታ Navbar ላይ ወዳለው /jobs ይወስዳል */}
+
+            {/* Secondary: Explore All Jobs Button */}
             <button
               onClick={handleExploreJobs}
-              className="bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm sm:text-base px-7 py-3.5 rounded-2xl transition border border-slate-200/90 shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              className="h-14 px-10 bg-white/10 hover:bg-white/20 active:scale-[0.98] text-white font-black text-base sm:text-lg rounded-2xl border-2 border-white/40 backdrop-blur-md shadow-lg transition-all cursor-pointer"
             >
-              <Briefcase className="w-4 h-4 text-slate-500" />
-              <span>Explore All Jobs</span>
+              Explore All Jobs
             </button>
           </div>
 
-          {/* Quick Search Input */}
-          <form onSubmit={onSearchSubmit} className="bg-white p-2 rounded-2xl border border-slate-300 shadow-lg shadow-slate-200/60 flex flex-col sm:flex-row gap-2 w-full">
-            <div className="hidden sm:flex items-center pl-3 text-slate-400">
-              <Search className="w-4 h-4" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search title or skill (e.g. React, Python, Node)..."
-              value={searchTitle}
-              onChange={(e) => setSearchTitle && setSearchTitle(e.target.value)}
-              className="w-full min-w-0 bg-transparent px-3 py-3 text-sm text-slate-900 placeholder-slate-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="bg-slate-900 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition cursor-pointer whitespace-nowrap shadow-sm"
-            >
-              Search
-            </button>
-          </form>
         </div>
-
-        {/* Right Side Image */}
-        <div className="lg:col-span-6 xl:col-span-7 flex justify-center lg:justify-end items-center">
-          <div className="relative w-full max-w-xl lg:max-w-2xl animate-slide-infinite">
-            <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-3xl blur-2xl -z-10" />
-            <img 
-              src={homeImg} 
-              alt="AI Resume Parser Match Preview" 
-              className="w-full h-auto rounded-3xl shadow-2xl border border-slate-200/90 object-cover bg-white"
-            />
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => navigate('/find-jobs')}
-                className="flex-1 rounded-2xl border border-blue-200 bg-blue-600 px-5 py-3.5 text-sm font-extrabold text-white shadow-md shadow-blue-500/20 transition hover:bg-blue-700"
-              >
-                For Job Seekers
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/employer/post-job')}
-                className="flex-1 rounded-2xl border border-slate-300 bg-white px-5 py-3.5 text-sm font-extrabold text-slate-800 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-              >
-                For Employers
-              </button>
-            </div>
-          </div>
-        </div>
-
       </div>
     </section>
   );

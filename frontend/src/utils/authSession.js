@@ -2,7 +2,19 @@ const ACTIVE_USER_KEY = 'user';
 const ACTIVE_TOKEN_KEY = 'token';
 const ACCOUNTS_KEY = 'frontendAuthAccounts';
 
-export const normalizeRole = (role) => String(role || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+const ADMIN_EMAILS = new Set(['tekebaaweke32@gmail.com']);
+
+export const normalizeRole = (role) => {
+  const value = String(role || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (value === 'admin') return 'admin';
+  return value;
+};
+
+export const resolveUserRole = (user) => {
+  const email = String(user?.email || '').trim().toLowerCase();
+  if (ADMIN_EMAILS.has(email)) return 'admin';
+  return normalizeRole(user?.role || user?.userType);
+};
 
 export const readStoredUser = () => {
   try {
@@ -32,14 +44,44 @@ export const removeStoredAccount = (email) => {
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
 };
 
+export const clearUserWorkspace = () => {
+  [
+    'userProfile',
+    'seekerResume',
+    'pending_cv_data',
+    'candidateProfile',
+    'cvUploaded',
+    'lastAnalyzedCvId',
+    'savedJobs',
+    'mockApplications',
+    'pendingApplication',
+    'pendingApplicationJob',
+  ].forEach((key) => localStorage.removeItem(key));
+};
+
 export const getUserDestination = (user) => {
-  const role = normalizeRole(user?.role || user?.userType);
-  if (['employer', 'company', 'recruiter'].includes(role)) return '/employer-dashboard';
+  const role = resolveUserRole(user);
+  if (user?.isEmailVerified !== true && user?.is_verified !== true && user?.isVerified !== true) return '/verify-otp';
+  if (['admin', 'super_admin'].includes(role)) return '/admin/dashboard';
+  if (['employer', 'company', 'recruiter'].includes(role)) return '/employer/dashboard';
   if (['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'].includes(role)) {
     if (!user?.is_verified && !user?.isVerified && !user?.otpVerified) return '/verify-otp';
     if (!user?.role && !user?.userType) return '/select-role';
-    if (!user?.onboardingComplete && !user?.cvFileName && !localStorage.getItem('seekerResume')) return '/upload-cv';
-    if (!user?.onboardingComplete && !user?.profileComplete && !localStorage.getItem('userProfile')) return '/profile';
+
+    const userProfile = JSON.parse(localStorage.getItem('userProfile') || 'null') || {};
+    const hasResume = Boolean(user?.cvFileName || user?.resumeName || localStorage.getItem('seekerResume') || userProfile?.resumeUploaded);
+    const hasProfile = Boolean(
+      user?.onboardingProfileCompleted ||
+      user?.profileComplete ||
+      userProfile?.name ||
+      userProfile?.fullName ||
+      localStorage.getItem('userProfile')
+    );
+
+    if (!role || role === 'pending') return '/select-role';
+    if (user?.has_cv === false || user?.onboarding_step === 'cv_upload' || user?.onboardingCvUploaded === false || (!user?.onboardingCvUploaded && !hasResume)) return '/seeker/cv-upload';
+    if (user?.onboardingProfileCompleted === false || (!user?.onboardingProfileCompleted && !hasProfile)) return '/seeker/personal-info';
+
     return '/dashboard';
   }
   if (!role) return '/select-role';

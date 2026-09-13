@@ -23,7 +23,8 @@ export default function LogoutFlowModals({ user, token, logout, setSession, navi
   };
 
   const handleAccountSelect = (account) => {
-    setSession({ token: account.token || 'frontend-demo-token', user: account });
+          if (!account.token) return;
+          setSession({ token: account.token, user: account });
     closeFlow();
     navigate(getUserDestination(account), { replace: true });
   };

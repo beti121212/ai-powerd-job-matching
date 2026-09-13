@@ -1,0 +1,6 @@
+<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="40,50 50,30 60,50 55,60 45,60" fill="#2E8B57"/>
+  <polygon points="55,50 65,30 75,50 70,60 60,60" fill="#FFD700"/>
+  <polygon points="70,50 80,30 90,50 85,60 75,60" fill="#E74C3C"/>
+  <text x="130" y="60" font-size="14" font-weight="bold" fill="#2E8B57" font-family="Arial, sans-serif">Ethiopian</text>
+</svg>

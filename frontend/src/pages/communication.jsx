@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Paperclip, Send, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import BackToDashboard from "../components/BackToDashboard";
 
 const CONVERSATIONS_KEY = "mockConversations";
 
@@ -138,7 +137,6 @@ function MessagesList({
               <h1 className="text-3xl font-black text-slate-900">Messages</h1>
               <p className="mt-2 text-sm text-slate-500">Stay connected with employers and track your conversations.</p>
             </div>
-            <BackToDashboard />
           </div>
         </header>
         <label className="mt-6 block">

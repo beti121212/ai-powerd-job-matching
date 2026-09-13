@@ -74,10 +74,10 @@ const sendOTP = async (req, res) => {
 
     // Generate OTP
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 Minutes
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 Minutes
 
-    // አዲስ OTP ከመመዝገቡ በፊት የቀደሙትን የዚሁ ኢሜይል OTPዎች ማጽዳት
-    await pool.query('DELETE FROM otps WHERE email = ?', [cleanEmail]);
+    // Preserve OTP audit history. Mark previous unused codes as used instead of deleting them.
+    await pool.query('UPDATE otps SET is_used = TRUE WHERE email = ? AND is_used = FALSE', [cleanEmail]);
 
     // አዲሱን OTP መመዝገብ
     await pool.query(
@@ -94,7 +94,7 @@ const sendOTP = async (req, res) => {
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
           <h2 style="color: #1e293b;">Email Verification</h2>
           <p>Your OTP verification code is: <strong style="font-size: 24px; color: #2563eb;">${otp}</strong></p>
-          <p>This code expires in 10 minutes.</p>
+          <p>⏱️ Valid for 3 minutes (ይህ ኮድ ለ 3 ደቂቃዎች ብቻ ያገለግላል)</p>
         </div>
       `,
     });
@@ -121,10 +121,10 @@ const resendOTP = async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 3 * 60 * 1000);
 
-    // አዲስ OTP ከመመዝገቡ በፊት የቀደሙትን የዚሁ ኢሜይል OTPዎች ማጽዳት
-    await pool.query('DELETE FROM otps WHERE email = ?', [cleanEmail]);
+    // አዲስ OTP ከመመዝገቡ በፊት የቀደሙትን የዚሁ ኢሜይል OTPዎች እንዲቀመጡ ያስተካክላል (DELETE የለም)
+    await pool.query('UPDATE otps SET is_used = TRUE WHERE email = ? AND is_used = FALSE', [cleanEmail]);
 
     // አዲሱን OTP መመዝገብ
     await pool.query(
@@ -323,17 +323,35 @@ const verifyOTP = async (req, res) => {
     }
 
     const cleanEmail = email.toLowerCase().trim();
+    const cleanOtp = otp.toString().trim();
 
-    const [otpRecord] = await pool.query(
-      'SELECT * FROM otps WHERE email = ? AND otp_code = ? AND expires_at > NOW() AND is_used = FALSE',
-      [cleanEmail, otp]
+    const [rows] = await pool.query(
+      `SELECT id, otp_code, expires_at, is_used
+       FROM otps
+       WHERE email = ? AND is_used = FALSE
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [cleanEmail]
     );
 
-    if (otpRecord.length === 0) {
+    if (rows.length === 0) {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
-    await pool.query('UPDATE otps SET is_used = TRUE WHERE email = ? AND otp_code = ?', [cleanEmail, otp]);
+    const currentOtpRecord = rows[0];
+    const expiresAt = new Date(currentOtpRecord.expires_at);
+
+    if (new Date() > expiresAt) {
+      await pool.query('UPDATE otps SET is_used = TRUE WHERE id = ?', [currentOtpRecord.id]);
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    const storedCode = currentOtpRecord.otp_code || currentOtpRecord.otp;
+    if (storedCode !== cleanOtp) {
+      return res.status(400).json({ error: 'Invalid OTP code' });
+    }
+
+    await pool.query('UPDATE otps SET is_used = TRUE WHERE id = ?', [currentOtpRecord.id]);
 
     const [userRows] = await pool.query('SELECT id, full_name, email, role FROM users WHERE email = ?', [cleanEmail]);
     if (userRows.length === 0) {

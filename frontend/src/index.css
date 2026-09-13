@@ -9,6 +9,16 @@
 
 @import "tailwindcss";
 
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(1.5rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastProgress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
 /* The employer workspace keeps only its dark-mode action in the secondary
    header; the global navigation owns search, notifications, company identity,
    and logout. */
@@ -43,8 +53,14 @@ html,
 body,
 #root {
   min-height: 100%;
+  width: 100%;
   margin: 0;
   background: var(--background);
+}
+
+html,
+body {
+  overflow-x: hidden;
 }
 
 html {
@@ -59,10 +75,76 @@ body {
   color: var(--body);
   background: #ffffff;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 * {
   box-sizing: border-box;
+}
+
+.admin-shell {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.admin-main {
+  overflow-x: hidden;
+}
+
+@media (max-width: 639px) {
+  .admin-sidebar > div {
+    padding: 1rem;
+  }
+
+  .admin-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+  }
+
+  .admin-nav button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    border-left-width: 0;
+    border-bottom: 3px solid transparent;
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    white-space: nowrap;
+  }
+
+  .admin-nav button[class*="border-blue-600"] {
+    border-bottom-color: #2563eb;
+  }
+
+  .admin-sidebar button[aria-label="Logout"] {
+    margin-top: 0.75rem;
+  }
+
+  .admin-main {
+    padding: 1.5rem 1rem;
+  }
+
+  .admin-main h1 {
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .admin-sidebar > div {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .admin-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .admin-nav button {
+    min-height: 2.75rem;
+  }
 }
 
 /* Employer pipeline tables keep their column labels and empty states easy to scan. */
@@ -96,6 +178,59 @@ input,
 textarea,
 select {
   font: inherit;
+  min-height: 44px;
+}
+
+input,
+textarea {
+  display: block;
+  max-width: 100%;
+  color: #0f172a;
+  font-style: normal;
+  font-weight: 500;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+input,
+textarea,
+select {
+  font-style: normal !important;
+  font-size: 0.9375rem !important;
+  font-weight: 500 !important;
+  color: #0f172a !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+  font-style: italic !important;
+  font-size: 0.8125rem !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em;
+  opacity: 1 !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 20%);
+}
+
+@media (prefers-color-scheme: dark) {
+  input::placeholder,
+  textarea::placeholder {
+    color: #64748b !important;
+  }
+}
+
+@media (max-width: 639px) {
+  button,
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+  }
 }
 
 button:focus-visible,
@@ -151,6 +286,29 @@ select:focus-visible {
 }
 
 @layer utilities {
+  .responsive-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .responsive-split {
+    @apply grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-8;
+  }
+
+  .responsive-heading {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .brand-gradient {
     background-image: linear-gradient(135deg, var(--brand-primary), var(--brand-deep));
   }
@@ -215,6 +373,14 @@ select:focus-visible {
     transform: translateY(0);
   }
 
+  .card-floating {
+    @apply rounded-[26px] border border-slate-200/90 bg-white p-8 shadow-[0_16px_36px_-10px_rgba(0,0,0,0.12),0_6px_16px_-4px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out;
+  }
+
+  .card-floating:hover {
+    @apply -translate-y-3 cursor-pointer border-emerald-500/40 shadow-[0_26px_50px_-12px_rgba(0,0,0,0.18),0_8px_20px_-6px_rgba(0,0,0,0.08)];
+  }
+
   .dashboard-action-button {
     background-color: var(--brand-primary) !important;
     transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -227,7 +393,7 @@ select:focus-visible {
 
   /* Explore Jobs uses coordinated tinted sections and elevated card surfaces. */
   .jobs-page {
-    background: #eef4f8;
+    background: #ffffff;
   }
 
   .jobs-page .jobs-search-panel,
@@ -343,13 +509,13 @@ select:focus-visible {
   }
 
   .jobs-page .job-listing-card {
-    background: #f5fafd !important;
+    background: #ffffff !important;
     border-color: #cfe2ee;
     box-shadow: 0 8px 18px rgb(15 23 42 / 8%), 0 2px 5px rgb(86 162 216 / 10%);
   }
 
   .jobs-page .job-listing-card:nth-child(even) {
-    background: #edf6fb !important;
+    background: #ffffff !important;
   }
 
   .jobs-page .job-listing-card:hover,
@@ -607,8 +773,7 @@ main>section:nth-of-type(3) aside>div:last-child {
 
 .information-page input::placeholder,
 .information-page textarea::placeholder {
-  color: #64748b !important;
-  opacity: 1;
+  color: #94a3b8 !important;
 }
 
 /* Keep seeker profile labels and fields visually consistent with the brand. */
@@ -616,16 +781,23 @@ main>section:nth-of-type(3) aside>div:last-child {
   color: var(--brand-deep) !important;
 }
 
-.profile-readable label::after {
-  content: ':';
-  margin-left: 0.15rem;
-}
-
 .profile-readable input,
 .profile-readable textarea,
 .profile-readable select {
   background-color: var(--brand-soft) !important;
   border-color: var(--brand-border) !important;
+}
+
+.profile-readable select.profile-job-preference-select,
+.profile-readable select.profile-job-preference-select option {
+  font-style: normal !important;
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+}
+
+.profile-readable select.profile-job-preference-select:has(option:checked[value=""]) {
+  color: #94a3b8 !important;
+  font-style: italic !important;
 }
 
 .information-page input:focus,
@@ -786,4 +958,26 @@ main table thead th {
 .seeker-module-page .border-slate-700,
 .seeker-module-page .border-slate-800 {
   border-color: var(--brand-border) !important;
+}
+
+@keyframes fieldShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes alertPulse {
+  0% { opacity: 0; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+input {
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+}
+
+textarea {
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }

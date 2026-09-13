@@ -1,0 +1,7 @@
+<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="100" fill="#E31E24"/>
+  <line x1="30" y1="20" x2="30" y2="80" stroke="#fff" stroke-width="6"/>
+  <line x1="50" y1="20" x2="50" y2="80" stroke="#fff" stroke-width="6"/>
+  <path d="M 100 60 Q 110 50 120 60 Q 110 70 100 60" fill="#fff"/>
+  <text x="130" y="50" font-size="12" font-weight="bold" fill="#E31E24" font-family="Arial, sans-serif">MSF</text>
+</svg>

@@ -1,6 +1,5 @@
- import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCheck, Building2, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
+import { UserCheck, Building2, ArrowRight, CheckCircle } from 'lucide-react';
 
 export default function DualPathCards() {
   const navigate = useNavigate();
@@ -26,7 +25,7 @@ export default function DualPathCards() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           
           {/* Path 1: For Job Seekers */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1">
+          <div className="card-floating flex flex-col justify-between group">
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 group-hover:scale-110 transition-transform">

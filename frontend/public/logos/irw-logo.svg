@@ -1,0 +1,5 @@
+<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="40" r="35" fill="#0051BA"/>
+  <path d="M 35 35 Q 50 25 65 35 Q 65 50 50 60 Q 35 50 35 35" fill="#fff" opacity="0.8"/>
+  <text x="120" y="55" font-size="18" font-weight="bold" fill="#0051BA" font-family="Arial, sans-serif">Islamic Relief</text>
+</svg>

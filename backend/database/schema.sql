@@ -8,16 +8,35 @@ SET SQL_MODE = '';
 -- CORE AUTHENTICATION & USER MANAGEMENT
 -- ============================================================================
 
+CREATE TABLE IF NOT EXISTS otps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL,
+    otp_code VARCHAR(10) NOT NULL,
+    purpose ENUM('registration', 'password-reset', 'email-verification', 'login') DEFAULT 'registration',
+    is_used BOOLEAN DEFAULT FALSE,
+    attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    expires_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email_expires (email, expires_at)
+);
+
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     phone VARCHAR(20),
-    password VARCHAR(255),
-    role ENUM('admin', 'employer', 'job_seeker') NOT NULL DEFAULT 'job_seeker',
+    password VARCHAR(255) NULL,
+    role ENUM('super_admin', 'admin', 'employer', 'job_seeker') NOT NULL DEFAULT 'job_seeker',
     is_verified BOOLEAN DEFAULT FALSE,
+    auth_status ENUM('pending_verification', 'active') NOT NULL DEFAULT 'pending_verification',
     is_active BOOLEAN DEFAULT TRUE,
+    onboarding_completed BOOLEAN DEFAULT FALSE,
     profile_picture_url VARCHAR(255),
+    avatar_url VARCHAR(255) NULL,
+    google_id VARCHAR(255) NULL,
+    auth_provider VARCHAR(50) NOT NULL DEFAULT 'email',
+    last_active_page VARCHAR(100) DEFAULT '/dashboard',
+    last_state_payload JSON NULL,
     bio TEXT,
     preferred_language VARCHAR(20) DEFAULT 'en',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -31,88 +50,38 @@ CREATE TABLE IF NOT EXISTS job_seeker_profiles (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL UNIQUE,
     headline VARCHAR(150),
+    job_category VARCHAR(80),
+    experience_level VARCHAR(30),
+    education_level VARCHAR(80),
     bio TEXT,
     location VARCHAR(100),
     country VARCHAR(100),
     city VARCHAR(100),
-    state_province VARCHAR(100),
-    latitude DECIMAL(10, 8),
-    longitude DECIMAL(11, 8),
-    preferred_job_type ENUM('full-time', 'part-time', 'contract', 'freelance', 'internship') DEFAULT 'full-time',
-    preferred_work_mode ENUM('on-site', 'remote', 'hybrid') DEFAULT 'hybrid',
+    education JSON,
+    graduation_year VARCHAR(10),
+    skills JSON,
+    languages JSON,
+    job_preferences JSON,
+    job_type VARCHAR(40),
+    expected_salary INT,
+    work_setup VARCHAR(30),
+    raw_cv_text LONGTEXT,
+    parsed_json_payload JSON,
+    preferred_job_type ENUM('full-time', 'part-time', 'freelance', 'contractual', 'contract', 'volunteer', 'intern (paid)', 'intern (unpaid)', 'internship') DEFAULT 'full-time',
+    preferred_work_mode ENUM('on-site', 'remote', 'hybrid', 'any') DEFAULT 'hybrid',
     salary_expectation_min INT,
     salary_expectation_max INT,
     currency VARCHAR(5) DEFAULT 'USD',
     is_available BOOLEAN DEFAULT TRUE,
     profile_completion_percentage INT DEFAULT 0,
+    profile_completed BOOLEAN DEFAULT FALSE,
     is_open_to_opportunities BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_email (email),
     INDEX idx_location (location),
     INDEX idx_availability (is_available)
-);
-
--- Job Seeker Education
-CREATE TABLE IF NOT EXISTS seeker_education (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    school_name VARCHAR(150) NOT NULL,
-    degree VARCHAR(100) NOT NULL,
-    field_of_study VARCHAR(100) NOT NULL,
-    start_date DATE,
-    end_date DATE,
-    is_current BOOLEAN DEFAULT FALSE,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user_id (user_id)
-);
-
--- Job Seeker Experience
-CREATE TABLE IF NOT EXISTS seeker_experience (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    company_name VARCHAR(150) NOT NULL,
-    job_title VARCHAR(100) NOT NULL,
-    employment_type ENUM('full-time', 'part-time', 'contract', 'temporary', 'internship', 'freelance', 'self-employed') NOT NULL,
-    location VARCHAR(100),
-    start_date DATE NOT NULL,
-    end_date DATE,
-    is_current BOOLEAN DEFAULT FALSE,
-    description TEXT,
-    years_of_experience INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user_id (user_id)
-);
-
--- Job Seeker Skills
-CREATE TABLE IF NOT EXISTS seeker_skills (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    skill_name VARCHAR(100) NOT NULL,
-    skill_category VARCHAR(50),
-    proficiency_level ENUM('beginner', 'intermediate', 'advanced', 'expert') DEFAULT 'intermediate',
-    years_of_experience INT,
-    is_endorsable BOOLEAN DEFAULT TRUE,
-    endorsement_count INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_skill (user_id, skill_name),
-    INDEX idx_skill_name (skill_name)
-);
-
--- Job Seeker Languages
-CREATE TABLE IF NOT EXISTS seeker_languages (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    language_name VARCHAR(50) NOT NULL,
-    proficiency ENUM('elementary', 'limited-working', 'professional-working', 'full-professional', 'native') NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_language (user_id, language_name)
 );
 
 -- ============================================================================
@@ -168,12 +137,17 @@ CREATE TABLE IF NOT EXISTS company_profiles (
     id INT AUTO_INCREMENT PRIMARY KEY,
     employer_id INT NOT NULL UNIQUE,
     company_name VARCHAR(150) NOT NULL,
+    representative_name VARCHAR(100),
+    representative_title VARCHAR(100),
+    work_email VARCHAR(150),
+    phone VARCHAR(20),
     company_registration_number VARCHAR(50) UNIQUE,
     industry VARCHAR(100),
     company_size ENUM('1-10', '11-50', '51-200', '201-500', '501-1000', '1000+') DEFAULT '11-50',
     website VARCHAR(255),
     logo_url VARCHAR(255),
     description TEXT,
+    company_summary TEXT,
     location VARCHAR(100),
     country VARCHAR(100),
     city VARCHAR(100),
@@ -186,10 +160,136 @@ CREATE TABLE IF NOT EXISTS company_profiles (
     verification_status ENUM('pending', 'verified', 'rejected') DEFAULT 'pending',
     verified_at TIMESTAMP NULL DEFAULT NULL,
     social_media_urls JSON,
+    hiring_volume VARCHAR(50),
+    linkedin VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (employer_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_verified (is_verified)
+);
+
+CREATE TABLE IF NOT EXISTS employers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId INT NOT NULL UNIQUE,
+    companyName VARCHAR(150) NOT NULL,
+    legalBusinessName VARCHAR(150),
+    tinNumber VARCHAR(50),
+    licenseDocumentUrl VARCHAR(255),
+    logoUrl VARCHAR(255),
+    website VARCHAR(255),
+    industry VARCHAR(100),
+    companySize VARCHAR(50) DEFAULT '11-50',
+    location VARCHAR(150),
+    phoneNumber VARCHAR(20),
+    phoneOperator VARCHAR(30),
+    verificationStatus ENUM('pending', 'verified', 'rejected') DEFAULT 'pending',
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_employer_user (userId),
+    INDEX idx_employer_verification (verificationStatus)
+);
+
+CREATE TABLE IF NOT EXISTS talent_pool (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employerId INT NOT NULL,
+    candidateId INT NOT NULL,
+    candidateName VARCHAR(150) NOT NULL,
+    primaryRole VARCHAR(150),
+    skills JSON,
+    aiMatchScore DECIMAL(5,2) DEFAULT 0,
+    notes TEXT,
+    savedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (employerId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (candidateId) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_saved_candidate (employerId, candidateId),
+    INDEX idx_talent_pool_employer (employerId)
+);
+
+CREATE TABLE IF NOT EXISTS job_invitations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employerId INT NOT NULL,
+    candidateId INT NOT NULL,
+    jobId INT NOT NULL,
+    message TEXT,
+    status ENUM('invited', 'accepted', 'declined', 'expired') DEFAULT 'invited',
+    sentAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (employerId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (candidateId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (jobId) REFERENCES jobs(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_job_invitation (employerId, candidateId, jobId),
+    INDEX idx_invitation_status (status),
+    INDEX idx_invitation_candidate (candidateId)
+);
+
+CREATE TABLE IF NOT EXISTS employer_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId INT NOT NULL UNIQUE,
+    emailAlerts BOOLEAN DEFAULT TRUE,
+    matchingAlerts BOOLEAN DEFAULT TRUE,
+    weeklyDigest BOOLEAN DEFAULT FALSE,
+    notificationEmail VARCHAR(150),
+    teamPermissions JSON,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS employer_notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employerId INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    body TEXT NOT NULL,
+    isRead BOOLEAN DEFAULT FALSE,
+    related_job_id INT NULL,
+    related_application_id INT NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (employerId) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_employer_notification_read (employerId, isRead)
+);
+
+CREATE TABLE IF NOT EXISTS employer_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    employerId INT NOT NULL,
+    candidateId INT NOT NULL,
+    subject VARCHAR(200),
+    body TEXT NOT NULL,
+    isRead BOOLEAN DEFAULT FALSE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (employerId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (candidateId) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_employer_message_participants (employerId, candidateId, isRead)
+);
+
+CREATE TABLE IF NOT EXISTS offers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    applicationId INT NOT NULL UNIQUE,
+    employerId INT NOT NULL,
+    candidateId INT NOT NULL,
+    offeredSalary DECIMAL(12,2),
+    startDate DATE,
+    offerLetterUrl VARCHAR(255),
+    status ENUM('draft', 'sent', 'accepted', 'declined') DEFAULT 'draft',
+    sentAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (applicationId) REFERENCES applications(id) ON DELETE CASCADE,
+    FOREIGN KEY (employerId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (candidateId) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_offers_employer (employerId)
+);
+
+CREATE TABLE IF NOT EXISTS onboarding_tasks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    candidateId INT NOT NULL,
+    employerId INT NOT NULL,
+    taskTitle VARCHAR(200) NOT NULL,
+    isCompleted BOOLEAN DEFAULT FALSE,
+    documentUrl VARCHAR(255),
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (candidateId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (employerId) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_candidate_task (candidateId, taskTitle),
+    INDEX idx_onboarding_employer (employerId, isCompleted)
 );
 
 -- Company Verification Requests
@@ -236,7 +336,10 @@ CREATE TABLE IF NOT EXISTS jobs (
     years_of_experience_max INT DEFAULT 20,
     application_deadline DATE,
     is_urgent BOOLEAN DEFAULT FALSE,
-    status ENUM('draft', 'published', 'closed', 'filled', 'archived') DEFAULT 'draft',
+    status ENUM('draft', 'pending_approval', 'published', 'rejected', 'closed', 'filled', 'archived') DEFAULT 'draft',
+    rejection_reason TEXT,
+    approved_by INT NULL,
+    approved_at TIMESTAMP NULL DEFAULT NULL,
     is_featured BOOLEAN DEFAULT FALSE,
     featured_until DATETIME,
     view_count INT DEFAULT 0,
@@ -286,6 +389,7 @@ CREATE TABLE IF NOT EXISTS applications (
     job_id INT NOT NULL,
     job_seeker_id INT NOT NULL,
     cv_id INT,
+    resume_snapshot JSON NULL,
     status ENUM('applied', 'under-review', 'shortlisted', 'rejected', 'interview-scheduled', 'offered', 'hired', 'withdrawn') DEFAULT 'applied',
     application_status_flow JSON,
     ai_match_score DECIMAL(5, 2),
@@ -310,6 +414,7 @@ CREATE TABLE IF NOT EXISTS applications (
     INDEX idx_seeker_id (job_seeker_id),
     INDEX idx_status (status),
     INDEX idx_ai_score (ai_match_score)
+    ,UNIQUE KEY unique_application_candidate_job (job_id, job_seeker_id)
 );
 
 -- Skill Gaps
@@ -535,7 +640,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
 CREATE TABLE IF NOT EXISTS user_activity_log (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    activity_type ENUM('login', 'profile-update', 'job-view', 'job-apply', 'profile-view', 'message-sent', 'cv-upload') NOT NULL,
+    activity_type ENUM('login', 'profile-update', 'job-view', 'job-apply', 'profile-view', 'message-sent', 'cv-upload', 'role_selected') NOT NULL,
     related_job_id INT,
     related_user_id INT,
     ip_address VARCHAR(45),
@@ -561,16 +666,85 @@ CREATE TABLE IF NOT EXISTS job_analytics (
     FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
 );
 
--- OTP Storage
-CREATE TABLE IF NOT EXISTS otps (
+-- Contact Messages
+CREATE TABLE IF NOT EXISTS contact_messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(100) NOT NULL,
-    otp_code VARCHAR(10) NOT NULL,
-    purpose ENUM('registration', 'password-reset', 'email-verification') DEFAULT 'registration',
-    is_used BOOLEAN DEFAULT FALSE,
-    expires_at TIMESTAMP NULL DEFAULT NULL,
+    full_name VARCHAR(150) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    status ENUM('new', 'read', 'replied', 'archived') NOT NULL DEFAULT 'new',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_email_expires (email, expires_at)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_contact_email (email),
+    INDEX idx_contact_status (status),
+    INDEX idx_contact_created_at (created_at)
 );
+
+-- About Page Content
+CREATE TABLE IF NOT EXISTS about_content (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    mission TEXT NOT NULL,
+    vision TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO about_content (title, description, mission, vision)
+SELECT
+    'About AI-Powered Job Matching System',
+    'An intelligent job matching platform that connects job seekers with relevant opportunities by analyzing their skills, experience, education, and career preferences.',
+    'Our mission is to make job discovery and recruitment faster, smarter, and more personalized through artificial intelligence.',
+    'Our vision is to create an intelligent employment ecosystem where employers find the right talent and people find meaningful work.'
+WHERE NOT EXISTS (SELECT 1 FROM about_content);
+
+-- How It Works Steps
+CREATE TABLE IF NOT EXISTS how_it_works_steps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    audience ENUM('seekers', 'employers') NOT NULL,
+    step_number TINYINT UNSIGNED NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    route VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_audience_step (audience, step_number),
+    INDEX idx_how_it_works_audience (audience, is_active)
+);
+
+INSERT INTO how_it_works_steps (audience, step_number, title, description, type, route)
+SELECT 'seekers', 1, 'Create your profile', 'Add your skills, experience, and career preferences so the platform can understand what you are looking for.', 'profile', '/profile'
+WHERE NOT EXISTS (SELECT 1 FROM how_it_works_steps WHERE audience = 'seekers' AND step_number = 1);
+
+INSERT INTO how_it_works_steps (audience, step_number, title, description, type, route)
+SELECT 'seekers', 2, 'Discover relevant jobs', 'Browse opportunities ranked by how closely they match your profile and goals.', 'search', '/jobs'
+WHERE NOT EXISTS (SELECT 1 FROM how_it_works_steps WHERE audience = 'seekers' AND step_number = 2);
+
+INSERT INTO how_it_works_steps (audience, step_number, title, description, type, route)
+SELECT 'seekers', 3, 'Review your match score', 'See the skills and experience behind each recommendation before you apply.', 'ai', '/matches'
+WHERE NOT EXISTS (SELECT 1 FROM how_it_works_steps WHERE audience = 'seekers' AND step_number = 3);
+
+INSERT INTO how_it_works_steps (audience, step_number, title, description, type, route)
+SELECT 'seekers', 4, 'Apply with confidence', 'Submit your CV and track application progress from one place.', 'apply', '/applications'
+WHERE NOT EXISTS (SELECT 1 FROM how_it_works_steps WHERE audience = 'seekers' AND step_number = 4);
+
+INSERT INTO how_it_works_steps (audience, step_number, title, description, type, route)
+SELECT 'employers', 1, 'Create a job listing', 'Describe the role, required skills, and experience you need.', 'profile', '/employer/jobs'
+WHERE NOT EXISTS (SELECT 1 FROM how_it_works_steps WHERE audience = 'employers' AND step_number = 1);
+
+INSERT INTO how_it_works_steps (audience, step_number, title, description, type, route)
+SELECT 'employers', 2, 'Reach matched candidates', 'Connect with job seekers whose profiles align with your requirements.', 'search', '/employer/matches'
+WHERE NOT EXISTS (SELECT 1 FROM how_it_works_steps WHERE audience = 'employers' AND step_number = 2);
+
+INSERT INTO how_it_works_steps (audience, step_number, title, description, type, route)
+SELECT 'employers', 3, 'Compare applications', 'Review candidate profiles and match evidence in one focused view.', 'ai', '/employer/applications'
+WHERE NOT EXISTS (SELECT 1 FROM how_it_works_steps WHERE audience = 'employers' AND step_number = 3);
+
+INSERT INTO how_it_works_steps (audience, step_number, title, description, type, route)
+SELECT 'employers', 4, 'Build your team', 'Move promising candidates through your hiring workflow and connect directly.', 'connect', '/employer/applications'
+WHERE NOT EXISTS (SELECT 1 FROM how_it_works_steps WHERE audience = 'employers' AND step_number = 4);
 
 COMMIT;

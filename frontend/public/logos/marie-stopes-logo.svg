@@ -1,0 +1,5 @@
+<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <path d="M 40 60 L 60 30 L 80 60 Z" fill="#4A90E2" stroke="#4A90E2" stroke-width="2"/>
+  <rect x="35" y="60" width="50" height="3" fill="#4A90E2"/>
+  <text x="120" y="65" font-size="14" font-weight="bold" fill="#4A90E2" font-family="Arial, sans-serif">Marie Stopes</text>
+</svg>

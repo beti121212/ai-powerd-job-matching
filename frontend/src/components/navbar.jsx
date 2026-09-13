@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LogIn,
@@ -7,12 +7,15 @@ import {
   Menu,
   UserPlus,
   X,
+  ChevronDown,
+  ArrowRight,
 } from 'lucide-react';
 
 // የፎቶ Path — use local asset fallback in project
-import heroBannerImg from '../assets/hero.png';
+import siteLogo from '../pages/images/logo1.png';
 import { useAuth } from '../context/AuthContext';
 import LogoutFlowModals from './LogoutFlowModals';
+import { getNextOnboardingStep } from '../utils/applicationFlow';
 
 export default function Navbar() {
   const location = useLocation();
@@ -21,20 +24,38 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [logoutSession, setLogoutSession] = useState(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
 
   const isActive = (path) => location.pathname === path;
   // የ Role ዓይነቶች ማረጋገጫ
   const role = (user?.role || user?.userType || '').toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
-  const isSeeker = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'].includes(role);
   const isEmployer = ['employer', 'company', 'recruiter'].includes(role);
   const isAdmin = role === 'admin';
   const isSeekerDashboardPage = ['/dashboard', '/seeker-dashboard', '/seekerDashboard'].includes(location.pathname);
   const displayName = user?.name || user?.full_name || user?.email || 'User';
   const avatarUrl = user?.avatarUrl || user?.avatar_url;
+  const resumeOnboarding = () => {
+    setProfileMenuOpen(false);
+    navigate(getNextOnboardingStep(), { replace: true });
+  };
+  const goToDashboard = () => {
+    setProfileMenuOpen(false);
+    navigate(isEmployer ? '/employer/dashboard' : isAdmin ? '/admin-dashboard' : '/dashboard');
+  };
   const handleLogout = () => {
+    setProfileMenuOpen(false);
     setLogoutSession({ token, user });
     setLogoutOpen(true);
   };
+
+  useEffect(() => {
+    const closeProfileMenu = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) setProfileMenuOpen(false);
+    };
+    document.addEventListener('mousedown', closeProfileMenu);
+    return () => document.removeEventListener('mousedown', closeProfileMenu);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm transition-all w-full">
@@ -42,21 +63,13 @@ export default function Navbar() {
       <div className="w-full px-4 sm:px-6 lg:px-8 h-20 sm:h-24 flex items-center justify-between gap-4">
 
         {/* BRAND LOGO - ሙሉ በሙሉ ወደ ግራ */}
-        <Link to="/" className="flex items-center gap-2.5 sm:gap-3.5 group shrink-0">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform duration-200 border border-slate-100">
+        <Link to="/" className="flex items-center gap-2.5 group shrink-0">
+          <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-200 bg-slate-950 shadow-md shadow-blue-500/10 transition-transform duration-200 group-hover:scale-[1.02] sm:h-12 sm:w-12">
             <img
-              src={heroBannerImg}
-              alt="Job Matching Logo"
-              className="w-full h-full object-cover"
+              src={siteLogo}
+              alt="AI Job Match"
+              className="h-full w-full object-contain object-center"
             />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors lowercase leading-none">
-              job <span className="text-blue-600">matching</span>
-            </span>
-            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 tracking-wider uppercase mt-0.5 sm:mt-1">
-              AI Platform
-            </span>
           </div>
         </Link>
 
@@ -114,13 +127,6 @@ export default function Navbar() {
           </Link>
 
           {/* ተጠቃሚው Login ካደረገ የሚታዩ Dashboard Links */}
-          {isAuthenticated && isSeeker && (
-            <Link to="/seeker-dashboard" className="text-xs font-extrabold bg-[var(--brand-primary)] text-white px-3.5 py-1.5 rounded-full hover:bg-[var(--brand-primary-hover)] transition flex items-center gap-2 shrink-0">
-              <LayoutDashboard className="w-4 h-4" />
-              <span>Seeker dashboard</span>
-            </Link>
-          )}
-
           {isAuthenticated && isEmployer && (
             <Link to="/employer-dashboard" className="text-xs font-extrabold bg-indigo-50 text-indigo-600 px-3.5 py-1.5 rounded-full hover:bg-indigo-100 transition flex items-center gap-2 shrink-0">
               <LayoutDashboard className="w-4 h-4" />
@@ -137,11 +143,19 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden lg:flex items-center gap-3 shrink-0 ml-auto">
-          {isAuthenticated && !isSeekerDashboardPage && (
-            <div className="flex items-center gap-3">
-              {avatarUrl ? <img src={avatarUrl} alt={displayName} className="h-9 w-9 rounded-full object-cover" /> : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{displayName.charAt(0).toUpperCase()}</div>}
-              <span className="max-w-40 truncate text-sm font-bold text-slate-700">{displayName}</span>
-              <button type="button" onClick={handleLogout} className="flex h-10 items-center gap-2 rounded-xl bg-[var(--brand-primary)] px-4 text-sm font-bold leading-none text-white shadow-sm transition hover:bg-[var(--brand-primary-hover)]" aria-label="Log out"><LogOut className="h-4 w-4" /><span>Log Out</span></button>
+          {isAuthenticated && (
+            <div ref={profileMenuRef} className="relative">
+              <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} className="flex min-h-11 items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-label="Open account menu">
+                {avatarUrl ? <img src={avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" /> : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{displayName.charAt(0).toUpperCase()}</div>}
+                <span className="max-w-40 truncate">{displayName}</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {profileMenuOpen && <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl" role="menu">
+                <div className="border-b border-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">{displayName}</div>
+                <button type="button" onClick={resumeOnboarding} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700" role="menuitem"><ArrowRight className="h-4 w-4" /><span>Resume Onboarding</span></button>
+                <button type="button" onClick={goToDashboard} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-100" role="menuitem"><LayoutDashboard className="h-4 w-4" /><span>Go to Dashboard</span></button>
+                <button type="button" onClick={handleLogout} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 transition hover:bg-red-50" role="menuitem"><LogOut className="h-4 w-4" /><span>Log Out</span></button>
+              </div>}
             </div>
           )}
           {!isAuthenticated && !isSeekerDashboardPage && (
@@ -221,17 +235,6 @@ export default function Navbar() {
             </Link>
 
             {/* Mobile User Consoles */}
-            {isAuthenticated && isSeeker && (
-              <Link
-                to="/seeker-dashboard"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="mx-2 my-1 px-4 py-3 rounded-xl text-sm font-extrabold bg-[var(--brand-primary)] text-white flex items-center gap-2"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span>Seeker dashboard</span>
-              </Link>
-            )}
-
             {isAuthenticated && isEmployer && (
               <Link
                 to="/employer-dashboard"
@@ -254,13 +257,13 @@ export default function Navbar() {
               </Link>
             )}
 
-            {isAuthenticated && !isSeekerDashboardPage && (
-              <div className="pt-3 mt-2 border-t border-slate-100 flex flex-col gap-2.5">
-                <div className="flex items-center gap-3 px-4 py-2 text-sm font-bold text-slate-700">
-                  {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">{displayName.charAt(0).toUpperCase()}</div>}
-                  <span>{displayName}</span>
-                </div>
-                <button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="brand-button w-full text-base"><LogOut className="w-5 h-5" /><span>Log Out</span></button>
+            {isAuthenticated && (
+              <div ref={profileMenuRef} className="relative pt-3 mt-2 border-t border-slate-100">
+                <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-label="Open account menu">
+                  {avatarUrl ? <img src={avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">{displayName.charAt(0).toUpperCase()}</div>}
+                  <span className="flex-1 truncate">{displayName}</span><ChevronDown className={`h-4 w-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {profileMenuOpen && <div className="mt-1 space-y-1 px-1"><button type="button" onClick={() => { resumeOnboarding(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700"><ArrowRight className="w-5 h-5" /><span>Resume Onboarding</span></button><button type="button" onClick={() => { goToDashboard(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"><LayoutDashboard className="w-5 h-5" /><span>Go to Dashboard</span></button><button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50"><LogOut className="w-5 h-5" /><span>Log Out</span></button></div>}
               </div>
             )}
             {!isAuthenticated && !isSeekerDashboardPage && (

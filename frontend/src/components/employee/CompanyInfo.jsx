@@ -1,266 +1,317 @@
-﻿import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Building2, 
-  Globe, 
-  MapPin, 
-  Users, 
-  ArrowRight, 
-  Sparkles, 
-  CheckCircle2 
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowRight, Building2, CheckCircle2, Loader2, User } from 'lucide-react';
+import officeImage from '../../pages/images/images3.jpg';
+import { useToast } from '../../hooks/useToast.js';
+import { scrollToFeedback } from '../../utils/scrollHelper.js';
 
-const CompanyInfo = ({
-  user,
-  onComplete
-}) => {
-  const navigate = useNavigate();
+const ambientZoomStyles = `
+  @keyframes ambientSlowZoom {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  .animate-ambient-zoom { animation: ambientSlowZoom 24s ease-in-out infinite; }
+`;
+
+const hiringVolumeOptions = ['1-5 Hires', '6-20 Hires', '20+ Scaled Hiring', 'Continuous Talent Pool'];
+const companySizeOptions = ['1-10', '11-50', '51-200', '201-500', '1000+'];
+const industryOptions = ['Technology & Cloud Infrastructure', 'Fintech & Banking', 'AI & Machine Learning', 'E-Commerce & Retail', 'Healthcare & BioTech', 'Telecom & Networks'];
+const phoneOperatorOptions = [
+  { value: 'Ethio Telecom', label: 'Ethio Telecom (+251)' },
+  { value: 'Safaricom', label: 'Safaricom (+251)' },
+];
+const inputClass = 'h-12 w-full rounded-xl border border-slate-200 bg-slate-50/80 px-4 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none transition-all hover:bg-slate-50 focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/10';
+const labelClass = 'mb-1.5 block text-xs sm:text-sm font-bold text-slate-800';
+
+const normalizePhoneNumber = (number = '') => {
+  const digits = String(number || '').replace(/\D/g, '').slice(0, 9);
+  return digits ? `+251${digits}` : '';
+};
+
+export default function CompanyInfo({ user, onComplete }) {
+  const { showSuccess, showError } = useToast();
   const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
-  const [fullName, setFullName] = useState(currentUser.full_name || currentUser.name || '');
-  const [position, setPosition] = useState(currentUser.position || currentUser.job_title || '');
-  const [companyName, setCompanyName] = useState('');
-  const [industry, setIndustry] = useState('');
-  const [companyEmail, setCompanyEmail] = useState(currentUser.email || '');
-  const [phoneNumber, setPhoneNumber] = useState(currentUser.phone || '');
-  const [companyType, setCompanyType] = useState('Private');
-  const [companySize, setCompanySize] = useState('11-50');
-  const [country, setCountry] = useState('');
-  const [city, setCity] = useState('');
-  const [address, setAddress] = useState('');
-  const [website, setWebsite] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
+  const slides = [
+    {
+      badge: '✨ AI-POWERED RECRUITMENT INTELLIGENCE',
+      heading: 'Build & Scale Your High-Performing Team.',
+      description: 'Connect with verified top-tier professionals matched precisely to your company culture and technical needs.',
+    },
+    {
+      badge: '⚡ 10X FASTER HIRING PIPELINE',
+      heading: 'Hire Top 1% AI-Matched Talent Faster.',
+      description: 'Eliminate manual CV screening with automated skill scoring and instant interview scheduling.',
+    },
+  ];
+  const initialPhoneDigits = String(currentUser.phone || '').replace(/\D/g, '').replace(/^251/, '').replace(/^0/, '').slice(0, 9);
+  const [phoneOperator, setPhoneOperator] = useState('Ethio Telecom');
+  const [phoneNumber, setPhoneNumber] = useState(initialPhoneDigits);
+  const [form, setForm] = useState({
+    representative_name: currentUser.full_name || currentUser.name || '',
+    representative_title: '',
+    work_email: currentUser.email || '',
+    phone: normalizePhoneNumber(initialPhoneDigits),
+    company_name: '',
+    industry: industryOptions[0],
+    company_size: '11-50',
+    location: '',
+    website: '',
+    linkedin: '',
+    description: '',
+    hiring_volume: hiringVolumeOptions[0],
+  });
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   useEffect(() => {
-    const loadCompany = () => {
+    const timer = setInterval(() => {
+      setCurrentSlideIndex((previous) => (previous + 1) % slides.length);
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadProfile = async () => {
       try {
-        const company = JSON.parse(localStorage.getItem('user') || '{}').companyInfo;
-        if (!company) return;
-        setFullName(company.full_name || currentUser.full_name || currentUser.name || '');
-        setPosition(company.position || currentUser.position || currentUser.job_title || '');
-        setCompanyName(company.company_name || '');
-        setIndustry(company.industry || '');
-        setCompanyEmail(company.company_email || currentUser.email || '');
-        setPhoneNumber(company.phone_number || currentUser.phone || '');
-        setCompanyType(company.company_type || 'Private');
-        setCompanySize(company.company_size || '11-50');
-        setCountry(company.country || '');
-        setCity(company.city || '');
-        setAddress(company.location || '');
-        setWebsite(company.website || '');
-        setLogoUrl(company.logo_url || '');
-      } catch (error) {
-        console.error('Unable to load company information:', error);
+        const response = await fetch('/api/employer/profile', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.profile || cancelled) return;
+        const profile = data.profile;
+        setForm((current) => ({
+          ...current,
+          representative_name: profile.representative_name || current.representative_name,
+          representative_title: profile.representative_title || current.representative_title,
+          work_email: profile.work_email || current.work_email,
+          phone: profile.phone || profile.phoneNumber || current.phone,
+          company_name: profile.company_name || current.company_name,
+          industry: profile.industry || current.industry,
+          company_size: profile.company_size || current.company_size,
+          location: profile.location || current.location,
+          website: profile.website || current.website,
+          linkedin: profile.linkedin || current.linkedin,
+          description: profile.description || profile.company_summary || current.description,
+          hiring_volume: profile.hiring_volume || current.hiring_volume,
+        }));
+        const storedPhone = String(profile.phone || '').replace(/\D/g, '').replace(/^251/, '').replace(/^0/, '').slice(0, 9);
+        if (storedPhone) setPhoneNumber(storedPhone);
+        if (profile.phoneOperator || profile.phone_operator) setPhoneOperator(profile.phoneOperator || profile.phone_operator);
+      } catch (loadError) {
+        console.warn('Unable to hydrate company profile:', loadError);
       }
     };
-    loadCompany();
+    loadProfile();
+    return () => { cancelled = true; };
   }, []);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
-    const profile = {
-      full_name: fullName,
-      position,
-      company_name: companyName,
-      company_email: companyEmail,
-      phone_number: phoneNumber,
-      industry,
-      company_type: companyType,
-      company_size: companySize,
-      country,
-      city,
-      location: address,
-      website,
-      logo_url: logoUrl,
+  const handleSave = async (event) => {
+    event.preventDefault();
+    const requiredFields = {
+      representative_name: 'Representative name',
+      representative_title: 'Job title',
+      work_email: 'Work email',
+      phone: 'Phone number',
+      company_name: 'Company name',
+      industry: 'Industry',
+      location: 'HQ location',
     };
-
+    const missingField = Object.entries(requiredFields).find(([field]) => !String(form[field] || '').trim());
+    if (missingField) {
+      setError(`${missingField[1]} is required.`);
+      return;
+    }
+    if (!/^[97]\d{8}$/.test(phoneNumber)) {
+      setError('Phone number must be 9 digits and start with 9 or 7.');
+      return;
+    }
+    setIsSaving(true);
+    setError('');
+    setSuccess('');
     try {
+      const response = await fetch('/api/employer/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+        body: JSON.stringify({ ...form, phoneOperator, phoneNumber, social_media_urls: { linkedin: form.linkedin } }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Unable to save company profile.');
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      localStorage.setItem('user', JSON.stringify({ ...storedUser, companyInfo: profile, isOnboardingComplete: true }));
-      if (onComplete) onComplete(profile);
-      else navigate('/employee-profile-completion');
-    } catch (err) {
-      console.error(err);
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      localStorage.setItem('user', JSON.stringify({
-        ...storedUser,
-        companyInfo: profile,
-        isOnboardingComplete: true
-      }));
-      if (onComplete) onComplete(profile);
-      else navigate('/employee-profile-completion');
+      localStorage.setItem('user', JSON.stringify({ ...storedUser, companyInfo: form, isOnboardingComplete: true }));
+      setSuccess('Company profile saved successfully!');
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      if (onComplete) onComplete(form);
+      else window.location.assign('/employer/dashboard');
+      showSuccess('Company profile saved successfully.');
+      scrollToFeedback('top');
+    } catch (saveError) {
+      setError(saveError.message || 'Unable to save company profile.');
+      showError(saveError.message || 'Unable to save company profile.');
+      scrollToFeedback('error');
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="information-page w-full max-w-3xl mx-auto space-y-8 animate-in fade-in duration-300">
-      
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-6">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-indigo-600 mb-1">
-            <Sparkles className="w-4 h-4" />
-            <span>Step 4: Employer Information</span>
-          </div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-            Employer Information
-          </h2>
-          <p className="text-sm sm:text-base text-slate-500 mt-1">
-            Add your basic company information to continue to your employer profile.
-          </p>
-        </div>
+    <div className="w-full max-w-full overflow-x-hidden bg-slate-50/50 pt-2">
+      <style>{ambientZoomStyles}</style>
+      <div className="grid min-h-[calc(100vh-88px)] w-full min-w-0 grid-cols-1 lg:grid-cols-12 sm:min-h-[calc(100vh-104px)]">
+        <aside className="relative hidden h-[calc(100vh-104px)] min-w-0 overflow-hidden bg-slate-100 lg:sticky lg:top-24 lg:col-span-5 lg:block">
+          <img
+            src={officeImage}
+            alt="Collaborative Office Team"
+            className="animate-ambient-zoom absolute inset-0 h-full w-full object-cover object-[30%_top] select-none pointer-events-none lg:object-[center_top]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-900/10 to-slate-900/40 lg:to-transparent" />
+          <div className="absolute inset-0 flex items-end p-8 lg:p-12">
+            <div className="w-full max-w-xl">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentSlideIndex}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  className="space-y-4"
+                >
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-white backdrop-blur-md">
+                    <span>{slides[currentSlideIndex].badge}</span>
+                  </div>
 
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100/90 text-emerald-800 text-xs font-bold self-start sm:self-center">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>Employer Verified</span>
-        </div>
+                  <h1 className="text-3xl font-black leading-tight tracking-tight text-white drop-shadow-md lg:text-4xl">
+                    {slides[currentSlideIndex].heading}
+                  </h1>
+
+                  <div className="max-w-lg rounded-2xl border border-white/20 bg-white/10 p-4 text-xs leading-relaxed text-white/90 shadow-xl backdrop-blur-md sm:p-5 sm:text-sm">
+                    <p>{slides[currentSlideIndex].description}</p>
+                    <div className="mt-3 flex items-center gap-3 border-t border-white/10 pt-3 text-[11px] font-bold text-emerald-400">
+                      <span>✓ 98.4% AI Match Accuracy</span>
+                      <span>•</span>
+                      <span>Verified Profiles</span>
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="mt-6 flex items-center gap-2">
+                {slides.map((_, index) => (
+                  <span
+                    key={index}
+                    className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
+                      index === currentSlideIndex ? 'bg-white shadow-lg shadow-white/50' : 'bg-white/40'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <main className="h-[calc(100vh-88px)] min-w-0 max-w-full overflow-y-auto overflow-x-hidden bg-white p-6 text-left [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin] sm:h-[calc(100vh-104px)] sm:p-10 lg:col-span-7 lg:p-12">
+          <div className="w-full max-w-2xl pb-10 sm:pb-14">
+            <header className="mb-8">
+              <h1 className="mb-1.5 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Company Profile Setup</h1>
+              <p className="mb-8 text-xs font-bold text-slate-500 sm:text-sm">Add the essential information candidates need to understand your organization.</p>
+            </header>
+
+            {error && <p className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700" role="alert">{error}</p>}
+            {success && <p className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700" role="status"><CheckCircle2 className="h-4 w-4" />{success}</p>}
+
+            <form onSubmit={handleSave} className="space-y-6">
+              <section>
+                <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-black text-slate-900">
+                  <User className="h-4 w-4 text-blue-600" />
+                  <span>Representative Information</span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Full Name" value={form.representative_name} onChange={(value) => update('representative_name', value)} required />
+                  <Field label="Job Title / Position" value={form.representative_title} onChange={(value) => update('representative_title', value)} required />
+                  <Field label="Work Email" type="email" value={form.work_email} onChange={(value) => update('work_email', value)} required />
+                  <div className="sm:col-span-2">
+                    <label className={labelClass}>Phone Number</label>
+                    <div className="mt-2 flex w-full items-center gap-3">
+                      <select
+                        value={phoneOperator}
+                        onChange={(event) => {
+                          const operator = event.target.value;
+                          setPhoneOperator(operator);
+                        }}
+                        className="h-12 w-40 shrink-0 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-800 outline-none transition-all focus:border-blue-600 focus:ring-2 focus:ring-blue-500 sm:w-44"
+                      >
+                        {phoneOperatorOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                      <div className="relative flex min-w-0 flex-1 items-center">
+                        <span className="pointer-events-none absolute left-3.5 select-none text-sm font-medium text-slate-400">+251</span>
+                        <input
+                          required
+                          type="tel"
+                          inputMode="numeric"
+                          value={phoneNumber}
+                          onChange={(event) => {
+                            const digits = event.target.value.replace(/\D/g, '').slice(0, 9);
+                            setPhoneNumber(digits);
+                            update('phone', normalizePhoneNumber(digits));
+                          }}
+                          maxLength={9}
+                          placeholder="912345678"
+                          className="h-12 w-full min-w-0 rounded-xl border border-slate-200 bg-white pl-14 pr-4 text-sm font-semibold text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 text-sm font-black text-slate-900">
+                  <Building2 className="h-4 w-4 text-blue-600" />
+                  <span>Company Identity</span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Company Name" value={form.company_name} onChange={(value) => update('company_name', value)} required />
+                  <Field label="Industry" select options={industryOptions} value={form.industry} onChange={(value) => update('industry', value)} required />
+                  <Field label="Company Size" select options={companySizeOptions} value={form.company_size} onChange={(value) => update('company_size', value)} required />
+                  <Field label="Headquarters Location" value={form.location} onChange={(value) => update('location', value)} required />
+                  <Field label="Target Candidates / Hiring Volume" select options={hiringVolumeOptions} value={form.hiring_volume} onChange={(value) => update('hiring_volume', value)} required />
+                  <Field label="Website (Optional)" type="url" value={form.website} onChange={(value) => update('website', value)} placeholder="https://example.com" />
+                  <Field label="Social Media Link (Optional)" type="url" value={form.linkedin} onChange={(value) => update('linkedin', value)} placeholder="https://linkedin.com/company/..." />
+                  <div className="sm:col-span-2">
+                    <label className={labelClass}>About Company <span className="font-medium text-slate-400">(Optional)</span>
+                      <textarea
+                        rows={3}
+                        value={form.description}
+                        onChange={(event) => update('description', event.target.value)}
+                        className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs font-semibold text-slate-900 placeholder:text-slate-400 outline-none transition-all hover:bg-slate-50 focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/10 sm:text-sm"
+                        placeholder="Briefly describe what your organization does..."
+                      />
+                    </label>
+                  </div>
+                </div>
+              </section>
+
+              <button type="submit" disabled={isSaving} className="mt-6 flex h-13 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 text-xs font-black text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-700 active:scale-[0.99] sm:text-sm">
+                {isSaving ? <><Loader2 className="h-4 w-4 animate-spin" />Saving profile...</> : <><ArrowRight className="h-4 w-4" />Save & Continue</>}
+              </button>
+            </form>
+          </div>
+        </main>
       </div>
-
-      <form onSubmit={handleSave} className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-slate-200 shadow-sm space-y-8">
-        <section>
-          <h3 className="mb-4 text-lg font-black text-slate-900">Employer / Contact Information</h3>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Full Name *</label>
-              <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Hana Bekele" className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-600 focus:bg-white transition-all" />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Position / Job Title *</label>
-              <input type="text" required value={position} onChange={(e) => setPosition(e.target.value)} placeholder="e.g. Human Resources Manager" className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-600 focus:bg-white transition-all" />
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <h3 className="mb-4 text-lg font-black text-slate-900">Company Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          <div className="md:col-span-2">
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-              Company Name
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                required
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="e.g. AfriCloud Technologies"
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all"
-              />
-              <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Work Email *</label>
-            <input type="email" required readOnly value={companyEmail} className="w-full px-4 py-3 bg-slate-100 border border-slate-300 rounded-xl text-sm sm:text-base text-slate-500" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Phone Number *</label>
-            <input type="tel" required value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="e.g. +251 911 000 000" className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-              Industry Domain
-            </label>
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all"
-            >
-              <option value="Technology & Cloud Infrastructure">Technology & Cloud Infrastructure</option>
-              <option value="Fintech & Banking">Fintech & Banking</option>
-              <option value="AI & Machine Learning">AI & Machine Learning</option>
-              <option value="E-Commerce & Retail">E-Commerce & Retail</option>
-              <option value="Healthcare & BioTech">Healthcare & BioTech</option>
-              <option value="Telecom & Networks">Telecom & Networks</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Company Type *</label>
-            <select required value={companyType} onChange={(e) => setCompanyType(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all">
-              <option>Private</option><option>NGO</option><option>Government</option><option>Startup</option><option>Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Company Size *</label>
-            <select required value={companySize} onChange={(e) => setCompanySize(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all">
-              <option value="1-10">1-10</option><option value="11-50">11-50</option><option value="51-200">51-200</option><option value="201-500">201-500</option><option value="500+">500+</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-              Country *
-            </label>
-            <input type="text" required value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Ethiopia" className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Region / City *</label>
-            <input type="text" required value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Addis Ababa" className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all" />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Address *</label>
-            <div className="relative">
-              <input type="text" required value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address, building, or office location" className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all" />
-              <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-              Company Website
-            </label>
-            <div className="relative">
-              <input
-                type="url"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://example.com"
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all"
-              />
-              <Globe className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">Company Logo URL</label>
-            <input type="url" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm sm:text-base outline-none focus:border-indigo-600 focus:bg-white transition-all" />
-          </div>
-
-        </div>
-  </section>
-
-        <button
-          id="employer-complete-profile-btn"
-          type="submit"
-          disabled={isSaving}
-          className="w-full py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base sm:text-lg rounded-2xl shadow-xl shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
-        >
-          {isSaving ? (
-            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <>
-              <span>Save and Continue</span>
-              <ArrowRight className="w-5 h-5" />
-            </>
-          )}
-        </button>
-      </form>
-
     </div>
   );
-};
+}
 
-export default CompanyInfo;
+function Field({ label, value, onChange, type = 'text', select = false, options = [], required = false, placeholder }) {
+  return <label className={labelClass}>{label}{select ? <select required={required} value={value} onChange={(event) => onChange(event.target.value)} className={`mt-2 ${inputClass}`}>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input required={required} type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={`mt-2 ${inputClass}`} />}</label>;
+}
