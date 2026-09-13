@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import HeroSection from '../../components/home/HeroSection';
+import peopleImg from '../images/peoples.jpg';
+import homeImg from '../images/home.jpg';
 import TrustedBy from '../../components/home/TrustedBy';
 
-const sectionNavItems = [
-  { label: 'How It Works', id: 'how-it-works' },
-  { label: 'AI Matching', id: 'ai-matching' },
-  { label: 'Find Jobs', id: 'find-jobs' },
-  { label: 'For Job Seekers', id: 'for-job-seekers' },
-  { label: 'For Employers', id: 'for-employers' },
-  { label: 'Why Choose Us', id: 'why-choose-us' },
-];
+const heroImages = [peopleImg, homeImg];
 
 const howItWorks = [
   { title: 'Create Account', text: 'Set up your talent or company profile in minutes.' },
@@ -54,8 +48,9 @@ const fallbackJobs = [
 
 export default function Home() {
   const navigate = useNavigate();
+  const headline = 'Find Your Dream Tech Job With AI Matching Precision';
+  const [typedHeadline, setTypedHeadline] = useState('');
   const [searchTitle, setSearchTitle] = useState('');
-  const [category, setCategory] = useState('');
   const [searchError, setSearchError] = useState('');
   const [publishedJobs] = useState(() => {
     try {
@@ -67,52 +62,29 @@ export default function Home() {
   const allJobs = publishedJobs.length ? publishedJobs : fallbackJobs;
   const [visibleJobs, setVisibleJobs] = useState(allJobs);
   const [activeQuery, setActiveQuery] = useState('');
-  const [activeSection, setActiveSection] = useState('how-it-works');
+  const [activeHeroImage, setActiveHeroImage] = useState(0);
 
   useEffect(() => {
-    const sections = sectionNavItems
-      .map(({ id }) => document.getElementById(id))
-      .filter(Boolean);
+    let characterIndex = 0;
+    const timer = window.setInterval(() => {
+      characterIndex += 1;
+      setTypedHeadline(headline.slice(0, characterIndex));
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleSection = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (visibleSection) {
-          setActiveSection(visibleSection.target.id);
-        }
-      },
-      {
-        rootMargin: '-18% 0px -55% 0px',
-        threshold: [0.2, 0.4, 0.6],
+      if (characterIndex >= headline.length) {
+        window.clearInterval(timer);
       }
-    );
+    }, 55);
 
-    sections.forEach((section) => observer.observe(section));
-
-    return () => observer.disconnect();
+    return () => window.clearInterval(timer);
   }, []);
 
-  const handleSectionClick = (event, id) => {
-    event.preventDefault();
-    const section = document.getElementById(id);
+  useEffect(() => {
+    const rotation = window.setInterval(() => {
+      setActiveHeroImage((currentImage) => (currentImage + 1) % heroImages.length);
+    }, 4500);
 
-    if (!section) {
-      return;
-    }
-
-    setActiveSection(id);
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.history.pushState(null, '', `#${id}`);
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const query = new URLSearchParams({ search: searchTitle, category }).toString();
-    navigate(`/jobs?${query}`);
-  };
+    return () => window.clearInterval(rotation);
+  }, []);
 
   const handleExploreSearch = (e) => {
     e.preventDefault();
@@ -155,13 +127,22 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans">
-      <HeroSection
-        searchTitle={searchTitle}
-        setSearchTitle={setSearchTitle}
-        category={category}
-        setCategory={setCategory}
-        handleSearch={handleSearch}
-      />
+      <section className="bg-[#f1f6ff] px-5 py-4 text-center sm:px-8 sm:py-6" aria-label="AI job matching hero">
+        <div className="mx-auto max-w-5xl">
+          <p className="mb-2 inline-flex rounded-full border border-blue-200 bg-blue-100/70 px-3 py-1 text-[0.55rem] font-bold tracking-wide text-blue-700 sm:text-[0.65rem]">
+            #1 Ethiopian AI-Powered Tech Career Platform
+          </p>
+          <h1 className="min-h-[3.5rem] text-2xl font-black leading-[1.08] tracking-tight text-[#102756] sm:min-h-0 sm:text-3xl lg:text-4xl">
+            {typedHeadline}
+            {typedHeadline.length < headline.length && <span className="ml-1 text-blue-600" aria-hidden="true">|</span>}
+          </h1>
+        </div>
+      </section>
+      <section className="flex w-full justify-end overflow-hidden bg-white" aria-label="AI job matching team">
+        <div className="relative mr-0 block h-[360px] w-full sm:h-[520px] lg:h-[700px] lg:w-[86%]">
+          {heroImages.map((image, index) => <img key={image} src={image} alt="Team using AI for job matching" className={`absolute inset-0 h-full w-full object-cover object-[center_62%] transition-all duration-1000 ease-in-out ${index === activeHeroImage ? 'scale-[1.08] opacity-100 lg:scale-[1.1]' : 'scale-[1.13] opacity-0 lg:scale-[1.15]'}`} />)}
+        </div>
+      </section>
       <TrustedBy />
       <section id="how-it-works" className="scroll-mt-20 w-full bg-slate-100 py-16 sm:py-24">
         <div className="mx-auto w-full max-w-[1550px] px-4 sm:px-6 lg:px-12 xl:px-16">
@@ -178,17 +159,14 @@ export default function Home() {
           </div>
 
           <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-6 lg:mt-16 lg:grid-cols-4 lg:gap-8 xl:gap-10">
-            {howItWorks.map(({ title, text }, index) => (
+            {howItWorks.map(({ title, text }) => (
               <div
                 key={title}
                 className="card-floating group relative flex min-h-[240px] flex-col justify-between text-left sm:min-h-[260px] lg:min-h-[350px] xl:min-h-[360px]"
               >
-                <div className="flex items-start justify-end">
-                  <span className="text-sm font-extrabold text-slate-400 sm:text-base">{String(index + 1).padStart(2, '0')}</span>
-                </div>
-                <div>
-                  <h3 className="mb-3 text-xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-2xl lg:text-2xl xl:text-3xl">{title}</h3>
-                  <p className="text-sm leading-relaxed text-slate-600 sm:text-base lg:text-lg">{text}</p>
+                <div className="max-w-full">
+                  <h3 className="mb-3 max-w-full break-words text-xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-2xl lg:text-2xl xl:text-3xl">{title}</h3>
+                  <p className="max-w-full break-words text-sm leading-relaxed text-slate-600 sm:text-base lg:text-lg">{text}</p>
                 </div>
               </div>
             ))}
@@ -207,10 +185,9 @@ export default function Home() {
           </div>
 
           <div className="mx-auto grid max-w-[1550px] grid-cols-1 gap-8 px-0 md:grid-cols-2 lg:grid-cols-3">
-            {aiFeatures.map(([title, text], index) => (
+            {aiFeatures.map(([title, text]) => (
               <article key={title} className="group rounded-[24px] border border-slate-200/80 bg-slate-50/80 p-8 transition-all duration-300 hover:bg-slate-50">
-                <span className="text-xs font-bold text-emerald-600">{String(index + 1).padStart(2, '0')}</span>
-                <h3 className="mb-2 mt-6 text-xl font-bold text-slate-900">{title}</h3>
+                <h3 className="mb-2 text-xl font-bold text-slate-900">{title}</h3>
                 <p className="text-sm leading-relaxed text-slate-600 sm:text-base">{text}</p>
               </article>
             ))}
@@ -276,11 +253,9 @@ export default function Home() {
             <Link to="/find-jobs" className="inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-8 py-3.5 font-bold text-white shadow-md transition-all duration-300 hover:bg-blue-700 hover:shadow-blue-500/25 sm:w-auto">Find Jobs</Link>
           </div>
           <div className="relative lg:col-span-7">
-            <div className="absolute bottom-8 left-4 top-8 w-px bg-blue-200 sm:left-6" aria-hidden="true" />
             <div className="space-y-4">
-              {seekerBenefits.map(([title, description], index) => (
-                <div key={title} className="relative rounded-2xl border border-slate-200/80 bg-white/90 p-6 pl-14 transition-all duration-300 hover:border-blue-500/40 hover:bg-white hover:shadow-md sm:p-7 sm:pl-16">
-                  <span className="absolute left-3 top-7 text-xs font-bold text-blue-600 sm:left-5">{String(index + 1).padStart(2, '0')}</span>
+              {seekerBenefits.map(([title, description]) => (
+                <div key={title} className="relative rounded-2xl border border-slate-200/80 bg-white/90 p-6 transition-all duration-300 hover:border-blue-500/40 hover:bg-white hover:shadow-md sm:p-7">
                   <h3 className="mb-1 text-lg font-bold text-slate-900">{title}</h3>
                   <p className="text-sm leading-6 text-slate-600">{description}</p>
                 </div>
@@ -299,11 +274,9 @@ export default function Home() {
             <Link to="/employer/post-job" className="inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-8 py-4 font-bold text-white shadow-lg transition-all duration-300 hover:bg-blue-700 hover:shadow-blue-500/25 sm:w-auto">Post a Job</Link>
           </div>
           <div className="relative lg:col-span-7">
-            <div className="absolute bottom-8 left-4 top-8 w-px bg-blue-200 sm:left-6" aria-hidden="true" />
             <div className="space-y-4">
-              {employerPipeline.map(([title, description], index) => (
-                <div key={title} className="relative ml-0 rounded-2xl border border-slate-200/70 bg-white/80 p-6 pl-14 transition-all duration-300 hover:border-blue-500/40 hover:bg-white hover:shadow-lg sm:pl-16">
-                  <span className="absolute left-3 top-6 text-xs font-bold text-blue-600 sm:left-5">{String(index + 1).padStart(2, '0')}</span>
+              {employerPipeline.map(([title, description]) => (
+                <div key={title} className="relative ml-0 rounded-2xl border border-slate-200/70 bg-white/80 p-6 transition-all duration-300 hover:border-blue-500/40 hover:bg-white hover:shadow-lg">
                   <h3 className="text-lg font-extrabold text-slate-900">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
                 </div>
@@ -322,11 +295,9 @@ export default function Home() {
             <Link to="/register" className="inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-8 py-3.5 font-bold text-white shadow-md transition-all duration-300 hover:bg-blue-700 sm:w-auto">Experience the Difference</Link>
           </div>
           <div className="relative lg:col-span-7">
-            <div className="absolute bottom-8 left-4 top-8 w-px bg-blue-200 sm:left-6" aria-hidden="true" />
             <div className="space-y-4">
-              {trustPoints.map(([title, text], index) => (
-                <div key={title} className="relative rounded-2xl border border-slate-200/80 bg-white/90 p-6 pl-14 transition-all duration-300 hover:border-blue-500/40 hover:bg-white hover:shadow-md sm:p-7 sm:pl-16">
-                  <span className="absolute left-3 top-7 text-xs font-bold text-blue-600 sm:left-5">{String(index + 1).padStart(2, '0')}</span>
+              {trustPoints.map(([title, text]) => (
+                <div key={title} className="relative rounded-2xl border border-slate-200/80 bg-white/90 p-6 transition-all duration-300 hover:border-blue-500/40 hover:bg-white hover:shadow-md sm:p-7">
                   <h3 className="mb-1 text-lg font-bold text-slate-900">{title}</h3>
                   <p className="text-sm leading-6 text-slate-600">{text}</p>
                 </div>

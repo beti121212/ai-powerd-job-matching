@@ -1,4 +1,3 @@
-import React from "react";
 import {
   BriefcaseBusiness,
   Briefcase,
@@ -7,8 +6,11 @@ import {
   FolderKanban,
   Layers3,
   MessageSquareText,
-  Info,
   Sparkles,
+  Target,
+  BarChart3,
+  FileText,
+  UserRound,
 } from "lucide-react";
 
 const defaultNavItems = [
@@ -45,9 +47,12 @@ export default function Sidebar({
     services: Layers3,
     jobs: Briefcase,
     about: Sparkles,
+    matches: Target,
+    scores: BarChart3,
+    applications: FileText,
+    profile: UserRound,
     prompts: MessageSquareText,
     contact: ContactRound,
-    about: Info,
   };
 
   return (

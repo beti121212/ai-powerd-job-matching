@@ -118,7 +118,7 @@ const MatchResults = () => {
               <span>Back</span>
             </button>
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              AI Job Match Intelligence 
+              {location.pathname === '/match-score-details' ? 'Match Score Details' : 'STEP 04 · Job Matches / Recommendations'} 
               <span className="p-1 rounded-lg bg-blue-100 text-blue-600 text-xs font-bold flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" /> Powered
               </span>
@@ -302,6 +302,14 @@ const MatchResults = () => {
                       >
                         <span>Details</span>
                         <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                      </button>
+
+                      <button
+                        onClick={() => navigate(`/interviews/${job.id}`, { state: { job } })}
+                        className="px-4 py-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <span>Interview</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </button>
 
                       <button 

@@ -19,6 +19,45 @@
   to { transform: scaleX(0); }
 }
 
+@keyframes employerImageReveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes employerImageFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.about-employer-reveal {
+  animation: employerImageReveal 900ms ease-out both;
+}
+
+.about-employer-float {
+  animation: employerImageFloat 7s ease-in-out 900ms infinite;
+}
+
+.about-employer-image {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  transition: transform 500ms ease, box-shadow 500ms ease;
+}
+
+.about-employer-image:hover {
+  transform: scale(1.035);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-employer-reveal,
+  .about-employer-float {
+    animation: none;
+  }
+
+  .about-employer-image {
+    transition: none;
+  }
+}
+
 /* The employer workspace keeps only its dark-mode action in the secondary
    header; the global navigation owns search, notifications, company identity,
    and logout. */
@@ -279,6 +318,24 @@ select:focus-visible {
   background: transparent;
 }
 
+.about-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.about-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.about-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
+}
+
+.about-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 [aria-labelledby="logout-title"] {
   max-width: 32rem;
   border-radius: 1.5rem;
@@ -379,6 +436,39 @@ select:focus-visible {
 
   .card-floating:hover {
     @apply -translate-y-3 cursor-pointer border-emerald-500/40 shadow-[0_26px_50px_-12px_rgba(0,0,0,0.18),0_8px_20px_-6px_rgba(0,0,0,0.08)];
+  }
+
+  /* Match score card proportions follow the compact score-and-chart layout. */
+  article[class*="border-blue-100"][class*="bg-blue-50\\/60"] > .grid {
+    grid-template-columns: 0.82fr 1.18fr;
+    gap: 1.5rem;
+  }
+
+  article[class*="border-blue-100"][class*="bg-blue-50\\/60"] h2 {
+    max-width: 11.25rem;
+    line-height: 1.15;
+  }
+
+  div[aria-label="Match score breakdown chart"] {
+    min-height: 15rem;
+    border-radius: 1.25rem;
+    background: rgb(255 255 255 / 0.85);
+  }
+
+  div[aria-label="Match score breakdown chart"] > div {
+    max-width: 3rem;
+  }
+
+  @media (max-width: 639px) {
+    article[class*="border-blue-100"][class*="bg-blue-50\\/60"] > .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  img[alt="Professionals connecting with an employer"] {
+    height: 18rem;
+    object-fit: cover;
+    object-position: center;
   }
 
   .dashboard-action-button {

@@ -1,72 +1,109 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   ArrowRight,
-  AtSign,
-  BriefcaseBusiness,
   CheckCircle2,
   ChevronDown,
   Clock3,
   Globe2,
   Mail,
   MapPin,
-  MessageSquareText,
   MessageCircle,
-  Music2,
+  MessageSquareText,
   Phone,
   Send,
-  ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import contactImg from '../pages/images/contact.jpg';
+import contactPhoneImg from '../pages/images/contactp.jpg';
+import contactLocationImg from '../utils/contactl.jpg';
+import hoursImg from './houres.jpg';
+import aiTeamImg from '../pages/images/peoples.jpg';
+import workplaceImg from '../pages/images/images.jpg';
+import collaborationImg from '../pages/images/images (1).jpg';
+import api from '../services/api';
 
-const contactCards = [
-  { title: 'Email Us', value: 'yabsirademeke07@gmail.com', description: 'Get help with your account, applications, or platform questions.', icon: Mail },
-  { title: 'Call Us', value: '0952748973', description: 'Available during business hours.', icon: Phone },
-  { title: 'Visit Us', value: 'Addis Ababa, Ethiopia', description: 'Serving job seekers and employers across Ethiopia.', icon: MapPin },
-  { title: 'Business Hours', value: 'Monday - Friday', description: '8:30 AM - 5:30 PM', icon: Clock3 },
-];
-
-const supportCategories = [
-  { title: 'AI Matching Support', description: 'Questions about recommendations and match scores.', icon: Sparkles },
-  { title: 'CV / Resume Support', description: 'Help uploading or improving your profile and CV.', icon: BriefcaseBusiness },
-  { title: 'Job Application Support', description: 'Guidance with applications and their progress.', icon: Send },
-  { title: 'Employer Support', description: 'Support for companies, vacancies, and hiring.', icon: ShieldCheck },
-  { title: 'Technical Support', description: 'Report an issue or get help using the platform.', icon: MessageSquareText },
+const contactInfo = [
+  {
+    title: 'Email Us',
+    value: 'support@jobmatching.ai',
+    description: 'Get help with your account, CV, profile, or AI matching questions.',
+    icon: Mail,
+    href: 'mailto:support@jobmatching.ai',
+  },
+  {
+    title: 'Call Us',
+    value: '0952748973',
+    description: 'Available during business hours for urgent support.',
+    icon: Phone,
+    href: 'tel:0952748973',
+  },
+  {
+    title: 'Visit Us',
+    value: 'Addis Ababa, Ethiopia',
+    description: 'Supporting job seekers and employers across Ethiopia.',
+    icon: MapPin,
+    href: 'https://www.google.com/maps/search/?api=1&query=Addis%20Ababa%2C%20Ethiopia',
+  },
+  {
+    title: 'Business Hours',
+    value: 'Monday - Friday',
+    description: '8:00 AM - 5:00 PM',
+    icon: Clock3,
+  },
 ];
 
 const socialLinks = [
-  { name: 'LinkedIn', url: 'https://linkedin.com/company/your-company', icon: Globe2 },
-  { name: 'Facebook', url: 'https://facebook.com/your-page', icon: Globe2 },
-  { name: 'Instagram', url: 'https://instagram.com/your-page', icon: Globe2 },
-  { name: 'Telegram', url: 'https://t.me/your-channel', icon: Send },
-  { name: 'TikTok', url: 'https://tiktok.com/@your-account', icon: Music2 },
-  { name: 'X', url: 'https://x.com/your-account', icon: AtSign },
-  { name: 'YouTube', url: 'https://youtube.com/@your-channel', icon: Globe2 },
-  { name: 'WhatsApp', url: 'https://wa.me/251xxxxxxxxx', icon: MessageCircle },
+  { name: 'LinkedIn', url: 'https://linkedin.com', icon: Globe2 },
+  { name: 'Facebook', url: 'https://facebook.com', icon: Globe2 },
+  { name: 'Instagram', url: 'https://instagram.com', icon: Globe2 },
+  { name: 'Telegram', url: 'https://t.me', icon: MessageCircle },
+  { name: 'WhatsApp', url: 'https://wa.me/251900000000', icon: MessageCircle },
+];
+
+const contactGallery = [
+  { image: contactImg, title: 'Direct support', alt: 'Support specialist ready to answer questions' },
+  { image: contactPhoneImg, title: 'Talk with our team', alt: 'Professional speaking on a phone' },
+  { image: aiTeamImg, title: 'AI matching support', alt: 'Team collaborating around an AI job matching platform' },
+  { image: workplaceImg, title: 'Career guidance', alt: 'Professional working with a laptop' },
+  { image: collaborationImg, title: 'Employer support', alt: 'Business team collaborating around a laptop' },
+  { image: hoursImg, title: 'Support hours', alt: 'Support hours information' },
 ];
 
 const faqs = [
-  ['How does AI job matching work?', 'Our matching engine compares skills, experience, preferences, and job requirements to surface relevant opportunities and transparent fit scores.'],
-  ['How can I apply for a job?', 'Create your profile, explore matching opportunities, and use the application action on any job that fits your goals.'],
-  ['How can employers post jobs?', 'Employers can create a company account and use the employer workspace to publish and manage verified vacancies.'],
-  ['How does the AI match candidates?', 'The platform evaluates multiple signals including skills, experience, location, and role requirements rather than relying on keywords alone.'],
-  ['How can I update my profile or CV?', 'Open your profile or CV workspace from your dashboard, update the relevant details, and save your changes.'],
-  ['How can I contact support?', 'Use this form or email yabsirademeke07@gmail.com and our team will respond during business hours.'],
+  ['How does AI matching work?', 'The system analyzes the job seeker\'s skills, experience, education, and job requirements to calculate a matching score.'],
+  ['How can I apply for a job?', 'Search for a suitable job, view its details, and click the Apply button to submit your application.'],
+  ['How is the Match Score calculated?', 'The AI compares the job requirements with the job seeker\'s profile information and generates a matching score.'],
+  ['Can employers post jobs?', 'Yes. Employers can create job postings and find suitable candidates through AI-powered matching.'],
+  ['How can I update my profile or CV?', 'Open your profile section, update your information, and upload a current CV to improve your opportunities.'],
+  ['How can I contact support?', 'Use the form below or email support@jobmatching.ai and we will respond during business hours.'],
 ];
 
-const initialForm = { firstName: '', lastName: '', email: '', phone: '', subject: '', userType: '', message: '' };
+const initialForm = { fullName: '', email: '', subject: '', message: '' };
 
 function validateForm(form) {
   const errors = {};
-  if (!form.firstName.trim()) errors.firstName = 'First name is required.';
-  if (!form.lastName.trim()) errors.lastName = 'Last name is required.';
-  if (!form.email.trim()) errors.email = 'Email address is required.';
-  else if (!/^\S+@\S+\.\S+$/.test(form.email)) errors.email = 'Enter a valid email address.';
-  if (!form.subject) errors.subject = 'Choose a subject.';
-  if (!form.message.trim()) errors.message = 'Message is required.';
-  else if (form.message.trim().length < 20) errors.message = 'Message must be at least 20 characters.';
-  else if (form.message.length > 1000) errors.message = 'Message must be 1000 characters or fewer.';
+
+  if (!form.fullName.trim()) {
+    errors.fullName = 'Full name is required.';
+  }
+
+  if (!form.email.trim()) {
+    errors.email = 'Email address is required.';
+  } else if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+    errors.email = 'Enter a valid email address.';
+  }
+
+  if (!form.subject.trim()) {
+    errors.subject = 'Subject is required.';
+  }
+
+  if (!form.message.trim()) {
+    errors.message = 'Message is required.';
+  } else if (form.message.trim().length < 20) {
+    errors.message = 'Message must be at least 20 characters.';
+  } else if (form.message.length > 1000) {
+    errors.message = 'Message must be 1000 characters or fewer.';
+  }
+
   return errors;
 }
 
@@ -86,18 +123,24 @@ export default function Contact() {
     setErrors((current) => ({ ...current, [name]: '' }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const nextErrors = validateForm(form);
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
 
-    // No contact endpoint exists in the current API service; this adapter is ready for one.
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
     setIsSending(true);
-    window.setTimeout(() => {
+    try {
+      await api.post('/contact', form);
       setIsSending(false);
       setIsSent(true);
-    }, 700);
+    } catch (error) {
+      setIsSending(false);
+      setErrors({ submit: error.response?.data?.message || 'Unable to send your message right now.' });
+    }
   };
 
   const resetForm = () => {
@@ -108,50 +151,225 @@ export default function Contact() {
 
   return (
     <main className="bg-brand-soft/40 text-slate-800">
-      <section className="relative overflow-hidden border-b border-[var(--brand-border)] bg-gradient-to-br from-[#f0f7fc] via-white to-[#eaf4fb] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <div className="pointer-events-none absolute -right-28 -top-32 h-80 w-80 rounded-full bg-[#56a2d8]/15 blur-3xl" />
-        <div className="relative mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="relative max-w-2xl">
-            <div className="pointer-events-none absolute -left-20 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-blue-100/20 blur-3xl" />
-            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.18em] brand-text shadow-sm"><MessageSquareText className="h-4 w-4" /> Contact Us</span>
-            <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">We&apos;re here to help you with your <span className="brand-text">job matching journey.</span></h1>
-            <p className="mt-5 max-w-xl text-base leading-8 text-slate-600 sm:text-lg">Have a question, need help, or want to partner with us? Our team is here to help you connect with the right opportunities and talent.</p>
-            <div className="mt-7 flex flex-wrap gap-3 text-sm font-bold brand-text"><span className="inline-flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> Trusted support</span><span className="inline-flex items-center gap-2"><Sparkles className="h-5 w-5" /> AI-powered guidance</span></div>
-          </div>
-          <div className="relative mx-auto w-full max-w-md">
-            <div className="absolute -inset-4 rounded-[2rem] brand-gradient opacity-15 blur-2xl" />
-            <svg className="absolute -inset-2 pointer-events-none" width="100%" height="100%" viewBox="0 0 400 450" preserveAspectRatio="none">
-              <path d="M 20 40 Q 30 10 80 15 Q 150 8 200 10 Q 300 5 350 30 Q 380 50 385 100 L 385 350 Q 380 400 350 415 Q 250 430 200 420 Q 100 430 60 415 Q 25 405 20 360 L 20 60 Z" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
-            </svg>
-            <div className="relative overflow-hidden rounded-[2rem] border border-white bg-white p-3 shadow-2xl shadow-[#2b73a4]/15">
-              <img src={contactImg} alt="Support team member ready to help" className="h-64 w-full rounded-[1.5rem] object-cover sm:h-80" />
-              <div className="absolute bottom-7 left-7 right-7 flex items-center gap-3 rounded-2xl border border-white/70 bg-white/90 p-3 shadow-lg backdrop-blur">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl brand-bg text-white">
-                  <Sparkles className="h-5 w-5" />
-                </span>
-                <span>
-                  <strong className="block text-sm text-slate-900">Your questions, matched with answers</strong>
-                  <small className="text-xs text-slate-500">Our support team is here for you</small>
-                </span>
-              </div>
+      <section className="relative overflow-hidden border-b border-[var(--brand-border)] bg-[#edf3f7] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[var(--brand-border)]" />
+        <div className="relative mx-auto flex max-w-[1320px] justify-center">
+          <div className="relative z-10 w-full max-w-[900px] text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-white/85 px-4 py-2 text-[0.64rem] font-black uppercase tracking-[0.22em] text-sky-700 shadow-sm backdrop-blur-sm">
+              <MessageSquareText className="h-3.5 w-3.5" />
+              Contact Us
             </div>
+
+            <h1 className="text-[1.1rem] font-black leading-tight tracking-[-0.02em] text-slate-950 sm:text-[1.5rem] lg:text-[2rem] xl:text-[2.25rem] lg:whitespace-nowrap">
+              <span>Need help with </span>
+              <span><span className="text-[var(--brand-primary)]">your AI</span> job matching?</span>
+            </h1>
+
+            <p className="mx-auto mt-3 max-w-none text-xs leading-5 text-slate-600 sm:text-sm lg:whitespace-nowrap">
+              We help job seekers, employers, and administrators resolve account, profile, CV, and AI matching questions quickly and clearly.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <section className="border-b border-slate-200 bg-white px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-6">
+            {contactGallery.map(({ image, title, alt }) => (
+              <figure key={title} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
+                <img src={image} alt={alt} className="aspect-[1.42] w-full object-cover transition duration-500 hover:scale-105" />
+                <figcaption className="bg-white px-5 py-4 text-base font-bold text-slate-900">{title}</figcaption>
+              </figure>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="px-4 py-12 sm:px-6 lg:px-8 lg:py-16"><div className="mx-auto grid max-w-7xl gap-4 sm:grid-cols-2 lg:grid-cols-4">{contactCards.map(({ title, value, description, icon: Icon }) => <article key={title} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[var(--brand-primary)] hover:shadow-lg"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft brand-text transition group-hover:brand-bg group-hover:text-white"><Icon className="h-5 w-5" /></span><h2 className="mt-5 text-base font-black text-slate-900">{title}</h2><p className="mt-2 break-words text-sm font-bold brand-text">{value}</p><p className="mt-2 text-sm leading-6 text-slate-500">{description}</p></article>)}</div></section>
+      <section className="px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <div className="mx-auto grid max-w-[1180px] gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {contactInfo.map(({ title, value, description, icon: Icon, href }) => {
+            const cardContent = (
+              <>
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-transparent text-sky-700 ring-1 ring-sky-200">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <h2 className="mt-4 text-[1.25rem] font-black leading-tight tracking-[-0.02em] text-slate-950">{title}</h2>
+                <p className="mt-2 break-words text-sm font-black leading-relaxed text-sky-700">{value}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
+              </>
+            );
+            const cardClassName = 'group rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-1 hover:border-[var(--brand-primary)] hover:shadow-lg';
 
-      <section className="px-4 pb-12 sm:px-6 lg:px-8"><div className="mx-auto max-w-7xl"><div className="mb-6"><p className="text-xs font-black uppercase tracking-[0.18em] brand-text">Choose a support area</p><h2 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">How can we help?</h2></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{supportCategories.map(({ title, description, icon: Icon }) => <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[var(--brand-primary)] hover:shadow-lg"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft brand-text"><Icon className="h-5 w-5" /></span><h3 className="mt-4 text-sm font-black leading-5 text-slate-900">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-500">{description}</p></article>)}</div></div></section>
+            return href ? (
+              <a key={title} href={href} aria-label={title === 'Call Us' ? 'Call 0952748973' : title === 'Email Us' ? 'Email support@jobmatching.ai' : 'Open Addis Ababa location in Google Maps'} target={title === 'Visit Us' ? '_blank' : undefined} rel={title === 'Visit Us' ? 'noreferrer' : undefined} className={cardClassName}>
+                {cardContent}
+              </a>
+            ) : (
+              <article key={title} className={cardClassName}>
+                {cardContent}
+              </article>
+            );
+          })}
+        </div>
+      </section>
 
-      <section className="px-4 pb-16 sm:px-6 lg:px-8 lg:pb-24"><div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-        <aside className="space-y-5"><div className="rounded-3xl brand-gradient p-7 text-white shadow-xl shadow-[#2b73a4]/15"><p className="text-xs font-black uppercase tracking-[0.18em] text-white/75">Support that understands your journey</p><h2 className="mt-4 text-2xl font-black">We&apos;re here to help you move forward.</h2><p className="mt-4 text-sm leading-7 text-white/80">Whether you are searching for your next role or building a high-performing team, tell us what you need.</p><div className="mt-7 space-y-4 text-sm"><p className="flex items-center gap-3"><Mail className="h-5 w-5" /> yabsirademeke07@gmail.com</p><p className="flex items-center gap-3"><Phone className="h-5 w-5" /> 0952748973</p><p className="flex items-center gap-3"><MapPin className="h-5 w-5" /> Addis Ababa, Ethiopia</p></div><div className="mt-7 border-t border-white/20 pt-6"><h3 className="text-lg font-black">Connect With Us</h3><p className="mt-2 text-sm leading-6 text-white/80">Stay connected with us for job opportunities, career tips, and platform updates.</p><div className="mt-4 flex flex-wrap gap-2">{socialLinks.map(({ name, url, icon: Icon }) => <a key={name} href={url} target="_blank" rel="noreferrer" aria-label={`Follow us on ${name}`} className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20"><Icon className="h-4 w-4" />{name}</a>)}</div></div></div><div className="rounded-3xl border border-[var(--brand-border)] bg-brand-soft p-6 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.16em] brand-text">AI Platform HQ</p><h3 className="mt-3 text-xl font-black text-slate-900">Serving Ethiopia&apos;s career community</h3><p className="mt-2 text-sm leading-6 text-slate-600">Reach us directly for account support, hiring partnerships, or platform questions.</p><div className="mt-5 space-y-3 text-sm font-semibold brand-text"><p className="flex items-center gap-3"><Mail className="h-4 w-4" /> yabsirademeke07@gmail.com</p><p className="flex items-center gap-3"><Phone className="h-4 w-4" /> 0952748973</p></div></div></aside>
+      <section className="px-4 pb-16 sm:px-6 lg:px-8 lg:pb-24">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+            <div className="mb-7">
+              <p className="text-xs font-black uppercase tracking-[0.18em] brand-text">Contact Us</p>
+              <h2 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">Send Us a Message</h2>
+            </div>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"><div className="mb-7"><h2 className="text-2xl font-black text-slate-950 sm:text-3xl">Send Us a Message</h2><p className="mt-2 text-sm leading-6 text-slate-500">Tell us how we can help and we&apos;ll get back to you as soon as possible.</p></div>{isSent ? <div className="flex min-h-[420px] flex-col items-center justify-center text-center"><span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><CheckCircle2 className="h-9 w-9" /></span><h3 className="mt-6 text-2xl font-black text-slate-900">Message Sent Successfully!</h3><p className="mt-3 max-w-md text-sm leading-6 text-slate-500">Thank you for contacting us. Our team will get back to you shortly.</p><button type="button" onClick={resetForm} className="mt-7 inline-flex items-center gap-2 rounded-xl brand-bg px-5 py-3 text-sm font-bold text-white transition hover:opacity-90">Send Another Message <ArrowRight className="h-4 w-4" /></button></div> : <form onSubmit={handleSubmit} noValidate className="space-y-5"><div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">First Name<input value={form.firstName} onChange={(e) => updateField('firstName', e.target.value)} className="contact-input" /> <FieldError>{errors.firstName}</FieldError></label><label className="text-sm font-bold text-slate-700">Last Name<input value={form.lastName} onChange={(e) => updateField('lastName', e.target.value)} className="contact-input" /> <FieldError>{errors.lastName}</FieldError></label></div><div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">Email Address<input type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} className="contact-input" /> <FieldError>{errors.email}</FieldError></label><label className="text-sm font-bold text-slate-700">Phone Number<input type="tel" value={form.phone} onChange={(e) => updateField('phone', e.target.value)} className="contact-input" /></label></div><div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">Subject<select value={form.subject} onChange={(e) => updateField('subject', e.target.value)} className="contact-input"><option value="">Choose a subject</option><option>Account Support</option><option>Job Application</option><option>Employer Support</option><option>Technical Issue</option><option>Partnership</option><option>General Question</option><option>Other</option></select><FieldError>{errors.subject}</FieldError></label><label className="text-sm font-bold text-slate-700">User Type<select value={form.userType} onChange={(e) => updateField('userType', e.target.value)} className="contact-input"><option value="">Choose user type</option><option>Job Seeker</option><option>Employer</option><option>Business Partner</option><option>General Inquiry</option><option>Other</option></select></label></div><label className="block text-sm font-bold text-slate-700">Message<textarea value={form.message} onChange={(e) => updateField('message', e.target.value)} maxLength={1000} rows={6} placeholder="Tell us more about your question or issue..." className="contact-input resize-none" /><span className="mt-1 block text-right text-xs text-slate-400">{form.message.length}/1000</span><FieldError>{errors.message}</FieldError></label><button type="submit" disabled={isSending} className="inline-flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-[#56a2d8]/20 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"><Send className="h-4 w-4" />{isSending ? 'Sending...' : 'Send Message'}</button></form>}</section>
-      </div></section>
+            {isSent ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <CheckCircle2 className="h-9 w-9" />
+                </span>
+                <h3 className="mt-6 text-2xl font-black text-slate-900">Message Sent Successfully!</h3>
+                <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
+                  Thank you for contacting us. Our support team will get back to you shortly.
+                </p>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="mt-7 inline-flex items-center gap-2 rounded-xl brand-bg px-5 py-3 text-sm font-bold text-white transition hover:opacity-90"
+                >
+                  Send Another Message
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                <FieldError>{errors.submit}</FieldError>
+                <label className="block text-sm font-bold text-slate-700">
+                  Name
+                  <input
+                    value={form.fullName}
+                    onChange={(event) => updateField('fullName', event.target.value)}
+                    className="contact-input"
+                    placeholder="Your full name"
+                  />
+                  <FieldError>{errors.fullName}</FieldError>
+                </label>
 
-      <section className="border-y border-slate-200 bg-white px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-4xl"><div className="text-center"><p className="text-xs font-black uppercase tracking-[0.18em] brand-text">Need a quick answer?</p><h2 className="mt-3 text-3xl font-black text-slate-950">Frequently Asked Questions</h2></div><div className="mt-8 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">{faqs.map(([question, answer], index) => <div key={question}><button type="button" aria-expanded={openFaq === index} onClick={() => setOpenFaq(openFaq === index ? null : index)} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-bold text-slate-800"><span>{question}</span><ChevronDown className={`h-5 w-5 shrink-0 brand-text transition-transform ${openFaq === index ? 'rotate-180' : ''}`} /></button><div className={`grid transition-[grid-template-rows] duration-300 ${openFaq === index ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}><div className="overflow-hidden"><p className="px-5 pb-4 text-sm leading-6 text-slate-600">{answer}</p></div></div></div>)}</div></div></section>
+                <label className="block text-sm font-bold text-slate-700">
+                  Email
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => updateField('email', event.target.value)}
+                    className="contact-input"
+                    placeholder="you@example.com"
+                  />
+                  <FieldError>{errors.email}</FieldError>
+                </label>
 
-      <section className="px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-7xl overflow-hidden rounded-3xl brand-gradient px-6 py-12 text-white shadow-xl sm:px-10"><div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-center"><div><h2 className="text-3xl font-black">Ready to Find Your Next Opportunity?</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-white/80">Join our AI-powered job matching platform and connect with opportunities that match your skills.</p></div><div className="flex flex-wrap gap-3"><Link to="/jobs" className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black brand-text transition hover:bg-brand-soft">Explore Jobs <ArrowRight className="h-4 w-4" /></Link><Link to="/register" className="inline-flex items-center gap-2 rounded-xl border border-white/50 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10">Create Account</Link></div></div><div className="mt-8 flex flex-col gap-3 border-t border-white/20 pt-6 sm:flex-row sm:items-center sm:justify-between"><p className="flex items-center gap-2 text-sm font-semibold text-white/85"><BriefcaseBusiness className="h-5 w-5" /> Are you hiring? Find the right talent with AI-powered matching.</p><Link to="/company" className="inline-flex items-center gap-2 text-sm font-black text-white hover:underline">Post a Job <ArrowRight className="h-4 w-4" /></Link></div></div></section>
+                <label className="block text-sm font-bold text-slate-700">
+                  Subject
+                  <input
+                    value={form.subject}
+                    onChange={(event) => updateField('subject', event.target.value)}
+                    className="contact-input"
+                    placeholder="Job Matching Problem"
+                  />
+                  <FieldError>{errors.subject}</FieldError>
+                </label>
+
+                <label className="block text-sm font-bold text-slate-700">
+                  Message
+                  <textarea
+                    value={form.message}
+                    onChange={(event) => updateField('message', event.target.value)}
+                    rows={6}
+                    className="contact-input resize-none"
+                    placeholder="Write your message here..."
+                  />
+                  <FieldError>{errors.message}</FieldError>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={isSending}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl brand-bg px-5 py-3 text-sm font-black text-white shadow-lg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSending ? 'Sending...' : 'Send Message'}
+                  <Send className="h-4 w-4" />
+                </button>
+              </form>
+            )}
+          </section>
+
+          <aside className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 bg-[#dfeef9] p-5">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Location</p>
+              <h3 className="mt-2 text-2xl font-black text-slate-900">Addis Ababa, Ethiopia</h3>
+            </div>
+
+            <img
+              src={contactLocationImg}
+              alt="Map showing Ethiopia and Addis Ababa"
+              className="block h-auto w-full object-contain"
+            />
+
+            <div className="h-[430px] w-full border-0">
+              <iframe
+                title="Addis Ababa map"
+                src="https://www.google.com/maps?q=Addis%20Ababa%2C%20Ethiopia&z=11&output=embed"
+                className="h-full w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+
+            <div className="space-y-4 border-t border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+              <div className="flex items-start gap-3">
+                <Mail className="mt-0.5 h-4 w-4 text-sky-700" />
+                <span>support@jobmatching.ai</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <Phone className="mt-0.5 h-4 w-4 text-sky-700" />
+                <span>0952748973</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <Clock3 className="mt-0.5 h-4 w-4 text-sky-700" />
+                <span>Monday - Friday, 8:00 AM - 5:00 PM</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section className="border-y border-slate-200 bg-white px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          <div className="text-center">
+            <p className="text-xs font-black uppercase tracking-[0.18em] brand-text">Need a quick answer?</p>
+            <h2 className="mt-3 text-3xl font-black text-slate-950">Frequently Asked Questions</h2>
+          </div>
+
+          <div className="mt-8 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
+            {faqs.map(([question, answer], index) => (
+              <div key={question}>
+                <button
+                  type="button"
+                  aria-expanded={openFaq === index}
+                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-bold text-slate-800"
+                >
+                  <span>{question}</span>
+                  <ChevronDown className={`h-5 w-5 shrink-0 brand-text transition-transform ${openFaq === index ? 'rotate-180' : ''}`} />
+                </button>
+                <div className={`grid transition-[grid-template-rows] duration-300 ${openFaq === index ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                  <div className="overflow-hidden">
+                    <p className="px-5 pb-4 text-sm leading-6 text-slate-600">{answer}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

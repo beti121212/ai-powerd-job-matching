@@ -104,14 +104,14 @@ function AppLayout() {
           <Route path="/find-jobs" element={<ExploreJobs />} />
           <Route path="/company" element={<Companies />} />
 
-          <Route path="/signup" element={<GuestOnlyRoute><Register /></GuestOnlyRoute>} />
-          <Route path="/sign-up" element={<GuestOnlyRoute><Register /></GuestOnlyRoute>} />
+          <Route path="/signup" element={<Register />} />
+          <Route path="/sign-up" element={<Register />} />
 
           {/* ========================================== */}
           {/* 2. AUTHENTICATION & ONBOARDING ROUTES      */}
           {/* ========================================== */}
           <Route path="/login" element={<GuestOnlyRoute><Login /></GuestOnlyRoute>} />
-          <Route path="/register" element={<GuestOnlyRoute><Register /></GuestOnlyRoute>} />
+          <Route path="/register" element={<Register />} />
           <Route path="/verify-otp" element={<OtpVerification />} />
 
           <Route path="/role-selection" element={<ProtectedRoute allowUnassigned><RoleSelection /></ProtectedRoute>} />
@@ -231,6 +231,14 @@ function AppLayout() {
           <Route path="/interviews/:id" element={<ProtectedRoute allowedRoles={["job_seeker", "seeker", "jobseeker", "user", "employee"]}>{withSeekerSidebar(<InterviewDetails />)}</ProtectedRoute>} />
           <Route
             path="/match-results"
+            element={
+              <ProtectedRoute allowedRoles={["job_seeker", "seeker", "jobseeker", "user", "employee"]}>
+                <MatchResults />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/match-score-details"
             element={
               <ProtectedRoute allowedRoles={["job_seeker", "seeker", "jobseeker", "user", "employee"]}>
                 <MatchResults />

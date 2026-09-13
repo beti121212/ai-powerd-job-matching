@@ -98,7 +98,7 @@ const Register = () => {
   // Form Validation
   const validateForm = () => {
     const newErrors = {};
-    const nameRegex = /^[a-zA-Z\s]{3,60}$/;
+    const nameRegex = /^[\p{L}\s]{3,60}$/u;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\x5B\x5D{};':"\\|,.<>/?]).{6,32}$/;
     const disposableDomains = new Set(['mailinator.com', '10minutemail.com', 'tempmail.com', 'guerrillamail.com', 'yopmail.com', 'trashmail.com', 'sharklasers.com', 'getairmail.com', 'dispostable.com', 'throwawaymail.com', 'mytemp.email', 'temp-mail.org']);

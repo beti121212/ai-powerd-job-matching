@@ -64,7 +64,7 @@ export default function Navbar() {
 
         {/* BRAND LOGO - ሙሉ በሙሉ ወደ ግራ */}
         <Link to="/" className="flex items-center gap-2.5 group shrink-0">
-          <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-200 bg-slate-950 shadow-md shadow-blue-500/10 transition-transform duration-200 group-hover:scale-[1.02] sm:h-12 sm:w-12">
+          <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-950 shadow-md shadow-blue-500/10 transition-transform duration-200 group-hover:scale-[1.02] sm:h-20 sm:w-20">
             <img
               src={siteLogo}
               alt="AI Job Match"
@@ -111,7 +111,7 @@ export default function Navbar() {
             className={`relative py-1 text-base xl:text-lg font-bold tracking-wide transition-colors duration-200 group ${isActive('/about') ? 'text-blue-600' : 'text-slate-700 hover:text-blue-600'
               }`}
           >
-            About Platform (6 Images)
+            About
             <span className={`absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full transition-transform duration-300 origin-left ${isActive('/about') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
               }`} />
           </Link>
@@ -222,7 +222,7 @@ export default function Navbar() {
               className={`px-4 py-3 rounded-xl font-bold text-base transition-colors ${isActive('/about') ? 'bg-blue-50 text-blue-600' : 'text-slate-700 hover:bg-slate-50'
                 }`}
             >
-              About Platform (6 Images)
+              About
             </Link>
 
             <Link

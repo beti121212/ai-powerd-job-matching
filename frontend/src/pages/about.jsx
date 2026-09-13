@@ -4,16 +4,13 @@ import Sidebar from "../components/about/Sidebar";
 import AboutView from "../components/about/AboutView";
 
 const navItems = [
-  { id: "overview", label: "Overview", path: "/about/overview" },
-  { id: "experience", label: "Experience", path: "/about/experience" },
-  { id: "skills", label: "Skills", path: "/about/skills" },
-  { id: "projects", label: "Projects", path: "/about/projects" },
-  { id: "services", label: "Services", path: "/about/services" },
-  { id: "jobs", label: "Jobs", path: "/about/jobs" },
   { id: "about", label: "About", path: "/about" },
-  { id: "prompts", label: "Prompt Studio", path: "/about/prompts" },
-  { id: "contact", label: "Contact", path: "/contact" },
-  { id: "createProfile", label: "Create Profile", path: "/profile/create" },
+  { id: "overview", label: "Overview", path: "/seeker-dashboard" },
+  { id: "matches", label: "My Matches", path: "/ai-matches" },
+  { id: "scores", label: "Match Scores", path: "/match-score-details" },
+  { id: "applications", label: "Applications", path: "/applications" },
+  { id: "profile", label: "My Profile", path: "/profile/me" },
+  { id: "jobs", label: "Explore Jobs", path: "/jobs" },
 ];
 
 export default function AboutPage({ initialSection = "services" }) {
@@ -23,6 +20,7 @@ export default function AboutPage({ initialSection = "services" }) {
   const [lang] = useState("en");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sectionPaths = Object.fromEntries(navItems.map((item) => [item.id, item.path]));
+  sectionPaths.register = "/register";
   const routeSections = {
     "/about": "about",
     "/about/overview": "overview",
@@ -66,7 +64,7 @@ export default function AboutPage({ initialSection = "services" }) {
               />
             )}
 
-            <aside className={`${sidebarOpen ? "fixed inset-0 z-50 block w-full" : "hidden"} shrink-0 self-start md:sticky md:top-20 md:block md:h-[calc(100vh-5rem)] md:w-72 md:overflow-y-auto`}>
+            <aside className={`${sidebarOpen ? "fixed inset-0 z-50 block w-full" : "hidden"} about-scrollbar shrink-0 self-start md:sticky md:top-20 md:block md:h-[calc(100vh-5rem)] md:overflow-y-auto md:w-72`}>
               <Sidebar
                 navItems={navItems}
                 currentSection={activeSection}
@@ -77,7 +75,7 @@ export default function AboutPage({ initialSection = "services" }) {
               />
             </aside>
 
-            <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 md:h-[calc(100vh-5rem)] md:p-2">
+            <main className="about-scrollbar min-w-0 flex-1 overflow-y-auto bg-slate-50 md:h-[calc(100vh-5rem)] md:p-2">
               <AboutView activeTab={activeSection} onNavigate={handleSectionChange} lang={lang} />
             </main>
           </div>
