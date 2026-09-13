@@ -757,7 +757,7 @@ function CleanJobCard({ job, saved, onToggleSave, onShare, onViewDetails }) {
 
         <div>
           <button
-            type="button"
+            type="button"className={classes.}
             onClick={(e) => {
               e.stopPropagation();
               onViewDetails(job);
