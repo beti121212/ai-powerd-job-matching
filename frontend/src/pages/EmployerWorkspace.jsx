@@ -1290,55 +1290,31 @@ export default function EmployerWorkspace() {
                     </div>
 
                     <div className="relative h-56 w-full pt-2">
-                      <svg className="h-full w-full overflow-visible" viewBox="0 0 800 180" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="pipelineGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.2" />
-                            <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
-                          </linearGradient>
-                        </defs>
-
-                        <line x1="0" y1="40" x2="800" y2="40" stroke="#f1f5f9" strokeDasharray="4 4" />
-                        <line x1="0" y1="90" x2="800" y2="90" stroke="#f1f5f9" strokeDasharray="4 4" />
-                        <line x1="0" y1="140" x2="800" y2="140" stroke="#f1f5f9" strokeDasharray="4 4" />
-
+                      <div className="absolute inset-x-0 top-2 bottom-10 flex flex-col justify-between">
+                        {[100, 75, 50, 25, 0].map((value) => (
+                          <div key={value} className="border-t border-dashed border-slate-100" />
+                        ))}
+                      </div>
+                      <div className="relative z-10 flex h-full items-end justify-around gap-3 px-2 pb-10 sm:gap-8 sm:px-8">
                         {(() => {
                           const chartValues = pipelineStages.map((stage) => Number(stage.value) || 0);
                           const maxValue = Math.max(...chartValues, 1);
-                          const points = pipelineStages.map((stage, index) => {
-                            const x = 40 + index * 190;
-                            const y = 160 - (Number(stage.value || 0) / maxValue) * 110;
-                            return { x, y, label: stage.label, value: stage.value };
+
+                          return pipelineStages.map((stage) => {
+                            const value = Number(stage.value) || 0;
+                            const height = value ? Math.max((value / maxValue) * 100, 8) : 4;
+                            return (
+                              <div key={stage.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2">
+                                <span className="text-xs font-black text-slate-700">{value}</span>
+                                <div className={`w-full max-w-14 rounded-t-xl ${stage.tone}`} style={{ height: `${height}%` }} title={`${stage.label}: ${value}`} />
+                              </div>
+                            );
                           });
-
-                          const linePath = points
-                            .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-                            .join(' ');
-                          const areaPath = `${linePath} L ${points[points.length - 1].x} 180 L ${points[0].x} 180 Z`;
-
-                          return (
-                            <>
-                              <path d={areaPath} fill="url(#pipelineGrad)" />
-                              <path
-                                d={linePath}
-                                fill="none"
-                                stroke="#2563eb"
-                                strokeWidth="3.5"
-                                strokeLinecap="round"
-                              />
-                              {points.map((point, index) => (
-                                <g key={`${point.label}-${index}`}>
-                                  <circle cx={point.x} cy={point.y} r={index === points.length - 1 ? 6 : 5} fill="#2563eb" stroke="#fff" strokeWidth={index === points.length - 1 ? 2 : 0} />
-                                </g>
-                              ))}
-                            </>
-                          );
                         })()}
-                      </svg>
-
-                      <div className="mt-3 flex justify-between border-t border-slate-100 pt-3 text-[11px] font-semibold text-slate-400">
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 flex justify-around gap-3 border-t border-slate-100 pt-3 text-center text-[11px] font-semibold text-slate-400 sm:gap-8 sm:px-8">
                         {pipelineStages.map((stage) => (
-                          <span key={stage.label}>{stage.label}</span>
+                          <span key={stage.label} className="min-w-0 flex-1 truncate">{stage.label}</span>
                         ))}
                       </div>
                     </div>

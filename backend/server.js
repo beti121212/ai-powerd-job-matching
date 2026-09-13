@@ -18,6 +18,9 @@ const jobSeekerRoutes = require("./routes/jobSeekerRoutes");
 const cvRoutes = require("./routes/cvRoutes");
 const seekerMatchingRoutes = require("./routes/seekerMatchingRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const contactRoutes = require("./routes/contactRoutes");
+const aboutRoutes = require("./routes/aboutRoutes");
+const howItWorksRoutes = require("./routes/howItWorksRoutes");
 const { issueOtp } = require("./services/otpService");
 const { syncGoogleUser } = require("./config/googleAuth");
 const { validateSignUp, validateLogin } = require("./middleware/validateAuth");
@@ -49,9 +52,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/contact', contactRoutes);
 app.use('/api/about', aboutRoutes);
 app.use('/api/how-it-works', howItWorksRoutes);
-
-const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
 
 const ensureDatabaseSchema = async () => {
   try {
@@ -474,25 +474,6 @@ const upload = multer({
   },
 });
 
-const sanitizeUser = (user = {}) => ({
-  id: user.id,
-  full_name: user.full_name || user.fullName || null,
-  email: user.email || null,
-  phone: user.phone || null,
-  role: user.role || 'job_seeker',
-  is_verified: Boolean(user.is_verified),
-  is_active: user.is_active !== false,
-  auth_provider: user.auth_provider || 'email',
-  avatar_url: user.avatar_url || user.profile_picture_url || null,
-});
-
-const resolveEffectiveRole = (role, email) => {
-  const targetEmail = String(email || '').trim().toLowerCase();
-  if (['tekebaaweke32@gmail.com'].includes(targetEmail)) return 'admin';
-  const value = String(role || 'job_seeker').trim().toLowerCase();
-  return ['super_admin', 'admin', 'employer', 'job_seeker'].includes(value) ? value : 'job_seeker';
-};
-
 const authenticateUser = (req, res, next) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
@@ -694,90 +675,6 @@ app.post('/api/send-otp', async (req, res) => {
   }
 });
 
-app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: 'Email and password are required.' });
-  }
-
-  const cleanEmail = String(email).trim().toLowerCase();
-  const enteredOtp = String(otp).trim();
-
-  try {
-    const [rows] = await db.query(
-      `SELECT * FROM otps
-       WHERE email = ? AND is_used = 0
-       ORDER BY id DESC LIMIT 1`,
-      [cleanEmail]
-    );
-
-    if (!rows || rows.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No active verification code found. Please request a new code.'
-      });
-    }
-
-    const otpRecord = rows[0];
-    if (new Date() > new Date(otpRecord.expires_at)) {
-      await db.query('UPDATE otps SET is_used = 1 WHERE id = ?', [otpRecord.id]);
-      return res.status(400).json({
-        success: false,
-        error: 'This OTP code has expired. Please request a new one.'
-      });
-    }
-
-    if (Number(otpRecord.attempts || 0) >= 4) {
-      return res.status(429).json({
-        success: false,
-        error: 'Too many failed attempts. For your security, please wait 15 minutes before requesting a new code.'
-      });
-    }
-
-    if (String(otpRecord.otp_code).trim() !== enteredOtp) {
-      const nextAttempts = Number(otpRecord.attempts || 0) + 1;
-      await db.query('UPDATE otps SET attempts = ? WHERE id = ?', [nextAttempts, otpRecord.id]);
-      const remaining = 4 - nextAttempts;
-
-      if (remaining <= 0) {
-        return res.status(429).json({
-          success: false,
-          error: 'Too many failed attempts. Please wait 15 minutes before trying again.'
-        });
-      }
-
-      return res.status(400).json({
-        success: false,
-        error: `Invalid OTP code. You have ${remaining} attempt(s) remaining.`
-      });
-    }
-
-    await db.query('UPDATE otps SET is_used = 1 WHERE id = ?', [otpRecord.id]);
-    await db.query(
-      "UPDATE users SET is_verified = TRUE, auth_status = 'active'" + (selectedRole ? ', role = ?' : '') + ' WHERE email = ?',
-      selectedRole ? [selectedRole, cleanEmail] : [cleanEmail]
-    );
-    const [verifiedUsers] = await db.query(
-      'SELECT id, full_name, email, phone, role, is_verified, is_active, profile_picture_url FROM users WHERE email = ? LIMIT 1',
-      [cleanEmail]
-    );
-    const verifiedUser = verifiedUsers[0];
-    const token = jwt.sign({ id: verifiedUser.id, email: verifiedUser.email, role: verifiedUser.role }, JWT_SECRET, { expiresIn: '7d' });
-    return res.status(200).json({
-      success: true,
-      message: 'Email verified successfully.',
-      token,
-      user: sanitizeUser(verifiedUser),
-      requiresRoleSelection: true,
-      onboarding_step: 'role_selection',
-      redirect_to: '/select-role',
-    });
-  } catch (dbErr) {
-    console.error('DB Verification Error:', dbErr);
-    return res.status(500).json({ success: false, message: 'Unable to verify OTP at this time.' });
-  }
-});
-
 // ==========================================
 // 3. USER REGISTRATION API (Unified & Safe)
 // ==========================================
@@ -874,29 +771,6 @@ app.post('/api/register', validateSignUp, async (req, res) => {
   }
 });
 
-app.post('/api/cvs', authenticateUser, upload.single('cv'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, message: 'CV file is required.' });
-  }
-
-  try {
-    const [userRows] = await db.query('SELECT id, email, phone FROM users WHERE email = ?', [normalizedEmail]);
-    if (userRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Account not found / መለያ አልተገኘም' });
-    }
-
-    const { delivery } = await issueOtp({ dbClient: db, email: normalizedEmail, phone: userRows[0].phone, purpose: 'login' });
-
-    return res.status(200).json({ success: true, delivery: { emailSent: delivery.email, smsSent: delivery.sms }, message: 'OTP sent to your email.' });
-  } catch (error) {
-    console.error('Send Login OTP Error:', error);
-    if (error.code === 'OTP_RATE_LIMITED') {
-      return res.status(429).json({ success: false, message: error.message });
-    }
-    return res.status(500).json({ success: false, message: 'Unable to send OTP.' });
-  }
-});
-
 app.use('/api/auth', authRoutes);
 app.use('/api', authRoutes);
 app.use('/api/jobs', jobRoutes);
@@ -906,77 +780,6 @@ app.use('/api', seekerMatchingRoutes);
 app.use('/api/job-seekers', jobSeekerRoutes);
 app.use('/api/seeker', jobSeekerRoutes);
 app.use('/api/profile', profileRoutes);
-
-  if (!normalizedEmail || !otpCode) {
-    return res.status(400).json({ success: false, message: 'Email and OTP are required.' });
-  }
-
-  try {
-    const [otpRows] = await db.query(
-      `SELECT * FROM otps
-        WHERE email = ? AND is_used = 0 AND purpose = 'login' AND expires_at > NOW()
-       ORDER BY id DESC LIMIT 1`,
-      [normalizedEmail]
-    );
-
-    if (!otpRows || otpRows.length === 0) {
-      return res.status(400).json({ success: false, error: 'No active verification code found. Please request a new code.' });
-    }
-
-    const otpRecord = otpRows[0];
-    if (new Date() > new Date(otpRecord.expires_at)) {
-      await db.query('UPDATE otps SET is_used = 1 WHERE id = ?', [otpRecord.id]);
-      return res.status(400).json({ success: false, error: 'This OTP code has expired. Please request a new one.' });
-    }
-
-    if (Number(otpRecord.attempts || 0) >= 4) {
-      return res.status(429).json({ success: false, error: 'Too many failed attempts. For your security, please wait 15 minutes before requesting a new code.' });
-    }
-
-    if (String(otpRecord.otp_code).trim() !== otpCode) {
-      const nextAttempts = Number(otpRecord.attempts || 0) + 1;
-      await db.query('UPDATE otps SET attempts = ? WHERE id = ?', [nextAttempts, otpRecord.id]);
-      const remaining = 4 - nextAttempts;
-
-      if (remaining <= 0) {
-        return res.status(429).json({ success: false, error: 'Too many failed attempts. Please wait 15 minutes before trying again.' });
-      }
-
-      return res.status(400).json({ success: false, error: `Invalid OTP code. You have ${remaining} attempt(s) remaining.` });
-    }
-
-    await db.query('UPDATE otps SET is_used = 1 WHERE id = ?', [otpRecord.id]);
-    console.log('--> [SUCCESS] OTP marked as is_used = 1 in database for ID:', otpRecord.id);
-
-    const [userRows] = await db.query('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
-    if (userRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
-    }
-
-    const user = userRows[0];
-    await db.query("UPDATE users SET is_verified = TRUE, auth_status = 'active' WHERE id = ?", [user.id]);
-    const effectiveRole = resolveEffectiveRole(user.role, user.email);
-    if (effectiveRole !== user.role) {
-      await db.query('UPDATE users SET role = ? WHERE id = ?', [effectiveRole, user.id]);
-      user.role = effectiveRole;
-    }
-
-    const token = jwt.sign({ id: user.id, email: user.email, role: effectiveRole }, JWT_SECRET, { expiresIn: '7d' });
-
-    return res.status(200).json({
-      success: true,
-      message: 'OTP verified successfully.',
-      token,
-      redirect_to: '/select-role',
-      onboarding_step: 'role_selection',
-      requiresRoleSelection: true,
-      user: sanitizeUser({ ...user, is_verified: true, role: effectiveRole }),
-    });
-  } catch (error) {
-    console.error('Verify Login OTP Error:', error);
-    return res.status(500).json({ success: false, message: 'Unable to verify login OTP / OTP ማረጋገጥ አልተቻለም' });
-  }
-});
 
 app.use((err, _req, res, _next) => {
   console.error('Unhandled server error:', err);
