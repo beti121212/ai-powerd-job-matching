@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Building2, CheckCircle2, FileText, Globe2, MapPin, ShieldCheck, Sparkles, UploadCloud, UserRound } from 'lucide-react';
 import officeImage from '../../pages/images/images (4).jpg';
 import api from '../../services/api';
+import { useToast } from '../../hooks/useToast.js';
 
 const hiringVolumeOptions = ['1-5 Hires', '6-20 Hires', '20+ Scaled Hiring', 'Continuous Talent Pool'];
 const companySizeOptions = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+'];
@@ -59,11 +60,18 @@ function buildFieldState(company = {}) {
 
 export default function CompanyLegal({ company, onSaveSuccess }) {
   const [formData, setFormData] = useState(() => buildFieldState(company));
-  const [notice, setNotice] = useState('');
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [phoneOperator, setPhoneOperator] = useState(() => (String(company?.phone || '').replace(/\D/g, '').startsWith('7') ? 'safaricom' : 'ethio-telecom'));
   const [phoneNumber, setPhoneNumber] = useState(() => String(company?.phone || '').replace(/\D/g, '').replace(/^251/, '').replace(/^0/, '').slice(0, 9));
   const lastSavedSignatureRef = useRef('');
+  const fieldRefs = useRef({});
+  const errorsTimerRef = useRef(null);
+  const { showSuccess, showError } = useToast();
+
+  useEffect(() => () => {
+    if (errorsTimerRef.current) window.clearTimeout(errorsTimerRef.current);
+  }, []);
 
   useEffect(() => {
     setFormData(buildFieldState(company));
@@ -93,7 +101,49 @@ export default function CompanyLegal({ company, onSaveSuccess }) {
     return Math.round((filled / fields.length) * 100);
   }, [formData]);
 
-  const update = (key, value) => setFormData((current) => ({ ...current, [key]: value }));
+  const update = (key, value) => {
+    setFormData((current) => ({ ...current, [key]: value }));
+    setErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const validate = (data = formData) => {
+    const nextErrors = {};
+    const companyName = String(data.companyName || '').trim();
+    const workEmail = String(data.workEmail || '').trim();
+    const phoneDigits = String(data.phone || '').replace(/\D/g, '');
+    const tin = String(data.tinNumber || '').trim();
+
+    if (!companyName) nextErrors.companyName = 'Company Name is required.';
+    else if (!/^[a-zA-Z\s]+$/.test(companyName)) nextErrors.companyName = 'Must contain letters only (no numbers or symbols).';
+    else if (companyName.length < 2) nextErrors.companyName = 'Company Legal Name must be at least 2 characters.';
+    if (!workEmail) nextErrors.workEmail = 'Official email address is required.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail)) nextErrors.workEmail = 'Please enter a valid business email.';
+    if (!phoneDigits) nextErrors.phone = 'Phone number is required.';
+    else if (phoneDigits.length < 9 || phoneDigits.length > 10) nextErrors.phone = 'Please enter a valid phone number (e.g. 0911223344).';
+    if (!tin) nextErrors.tinNumber = 'TIN number is required.';
+    else if (!/^\d{10}$/.test(tin)) nextErrors.tinNumber = 'TIN must be exactly 10 digits.';
+    if (!String(data.companyRegistrationNumber || '').trim() && !String(data.licenseDocumentUrl || '').trim()) nextErrors.tradeLicense = 'Trade License PDF document is required.';
+    const legalRepresentative = String(data.repFullName || '').trim();
+    if (!legalRepresentative) nextErrors.fullName = 'Representative Full Name is required.';
+    else if (!/^[a-zA-Z\s]+$/.test(legalRepresentative)) nextErrors.fullName = 'Must contain letters only (no numbers or symbols).';
+    if (!String(data.hqLocation || '').trim()) nextErrors.headquarters = 'Headquarters location/city is required.';
+    if (!String(data.industry || '').trim()) nextErrors.industry = 'Please select your primary industry / city.';
+    return nextErrors;
+  };
+
+  const focusFirstError = (nextErrors) => {
+    const firstField = Object.keys(nextErrors)[0];
+    const element = fieldRefs.current[firstField];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.setTimeout(() => element.focus(), 250);
+    }
+  };
 
   const buildPayload = (data = formData) => ({
     representative_name: data.repFullName,
@@ -118,6 +168,20 @@ export default function CompanyLegal({ company, onSaveSuccess }) {
   });
 
   const persistProfile = async (data = formData, manual = false) => {
+    if (manual) {
+      const nextErrors = validate(data);
+      setErrors(nextErrors);
+      if (Object.keys(nextErrors).length) {
+        if (errorsTimerRef.current) window.clearTimeout(errorsTimerRef.current);
+        errorsTimerRef.current = window.setTimeout(() => {
+          setErrors({});
+          errorsTimerRef.current = null;
+        }, 10000);
+        focusFirstError(nextErrors);
+        showError('Please complete all highlighted required fields.');
+        return;
+      }
+    }
     const payload = buildPayload(data);
     const signature = JSON.stringify(payload);
 
@@ -125,17 +189,23 @@ export default function CompanyLegal({ company, onSaveSuccess }) {
     lastSavedSignatureRef.current = signature;
 
     setSaving(true);
-    if (manual) setNotice('');
 
     try {
       const response = await api.put('/employer/profile', payload);
       if (manual) {
-        setNotice(response?.data?.message || 'Company profile saved and synced with your workspace.');
+        localStorage.removeItem('saved_employer_draft');
+        showSuccess('Company profile saved successfully!');
       }
       onSaveSuccess?.(response?.data?.profile || payload);
     } catch (error) {
       if (manual) {
-        setNotice(error?.response?.data?.message || 'Unable to save company profile. Please try again.');
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) {
+          localStorage.setItem('saved_employer_draft', JSON.stringify(data));
+          showError('⚠️ Your session has expired. Please log in again to save your profile.');
+        } else {
+          showError(error?.response?.data?.message || 'Unable to save company information to the database. Please try again.');
+        }
       }
     } finally {
       setSaving(false);
@@ -156,7 +226,7 @@ export default function CompanyLegal({ company, onSaveSuccess }) {
     if (!hasBasicValues) return undefined;
 
     const timeoutId = setTimeout(() => {
-      persistProfile(formData, false);
+      if (!Object.keys(validate(formData)).length) persistProfile(formData, false);
     }, 700);
 
     return () => clearTimeout(timeoutId);
@@ -181,11 +251,10 @@ export default function CompanyLegal({ company, onSaveSuccess }) {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-12">
-        <form onSubmit={save} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-7">
+        <form noValidate onSubmit={save} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-7">
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Representative name" value={formData.repFullName} onChange={(value) => update('repFullName', value)} />
             <Field label="Position / title" value={formData.repPosition} onChange={(value) => update('repPosition', value)} />
-            <Field label="Work email" type="email" value={formData.workEmail} onChange={(value) => update('workEmail', value)} />
+            <Field label="Business email" type="email" value={formData.workEmail} onChange={(value) => update('workEmail', value)} error={errors.workEmail} inputRef={(element) => { fieldRefs.current.workEmail = element; }} />
             <div className="space-y-2">
               <label className="block text-[11px] font-black uppercase tracking-[0.18em] text-slate-600">Phone number</label>
               <div className="flex gap-2">
@@ -194,25 +263,28 @@ export default function CompanyLegal({ company, onSaveSuccess }) {
                   <option value="safaricom">Safaricom</option>
                 </select>
                 <input
+                  ref={(element) => { fieldRefs.current.phone = element; }}
                   type="tel"
                   inputMode="numeric"
                   value={phoneNumber}
-                  onChange={(event) => setPhoneNumber(event.target.value.replace(/\D/g, '').slice(0, 9))}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  onChange={(event) => { setPhoneNumber(event.target.value.replace(/\D/g, '').slice(0, 9)); update('phone', event.target.value); }}
+                  className={`h-11 w-full rounded-xl border bg-slate-50 px-3 text-sm font-semibold text-slate-800 outline-none transition focus:ring-4 ${errors.phone ? 'border-rose-400 ring-1 ring-rose-400/20 bg-rose-50/10' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/10'}`}
                   placeholder="912345678"
                 />
               </div>
+              {errors.phone && <ErrorMessage message={errors.phone} />}
             </div>
 
-            <Field label="Company name" required value={formData.companyName} onChange={(value) => update('companyName', value)} />
-            <Field label="Industry" value={formData.industry} onChange={(value) => update('industry', value)} />
+            <Field label="Company Legal Name" required value={formData.companyName} onChange={(value) => update('companyName', value)} error={errors.companyName} inputRef={(element) => { fieldRefs.current.companyName = element; }} />
+            <Field label="Legal Representative" required value={formData.repFullName} onChange={(value) => update('repFullName', value)} error={errors.fullName} inputRef={(element) => { fieldRefs.current.fullName = element; }} />
+            <Field label="Primary industry" required value={formData.industry} onChange={(value) => update('industry', value)} error={errors.industry} inputRef={(element) => { fieldRefs.current.industry = element; }} />
             <Field label="Company size" select value={formData.companySize} onChange={(value) => update('companySize', value)} options={companySizeOptions} />
-            <Field label="HQ location" value={formData.hqLocation} onChange={(value) => update('hqLocation', value)} />
+            <Field label="Headquarters / City" required value={formData.hqLocation} onChange={(value) => update('hqLocation', value)} error={errors.headquarters} inputRef={(element) => { fieldRefs.current.headquarters = element; }} />
 
             <Field label="Website" type="url" value={formData.website} onChange={(value) => update('website', value)} />
             <Field label="LinkedIn" type="url" value={formData.linkedin} onChange={(value) => update('linkedin', value)} />
-            <Field label="TIN / tax ID" value={formData.tinNumber} onChange={(value) => update('tinNumber', value)} />
-            <Field label="Registration number" value={formData.companyRegistrationNumber} onChange={(value) => update('companyRegistrationNumber', value)} />
+            <Field label="TIN / tax ID" required value={formData.tinNumber} onChange={(value) => update('tinNumber', value)} error={errors.tinNumber} inputRef={(element) => { fieldRefs.current.tinNumber = element; }} />
+            <Field label="Trade license number" required value={formData.companyRegistrationNumber} onChange={(value) => update('companyRegistrationNumber', value)} error={errors.tradeLicense} inputRef={(element) => { fieldRefs.current.tradeLicense = element; }} />
 
             <div className="md:col-span-2">
               <label className="block text-[11px] font-black uppercase tracking-[0.18em] text-slate-600">About company</label>
@@ -230,13 +302,6 @@ export default function CompanyLegal({ company, onSaveSuccess }) {
               <Field label="License document URL" type="url" value={formData.licenseDocumentUrl} onChange={(value) => update('licenseDocumentUrl', value)} />
             </div>
           </div>
-
-          {notice && (
-            <div className="mt-5 flex items-start gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{notice}</span>
-            </div>
-          )}
 
           <div className="mt-6 flex flex-col justify-between gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
@@ -315,9 +380,9 @@ export default function CompanyLegal({ company, onSaveSuccess }) {
   );
 }
 
-function Field({ label, value, onChange, type = 'text', required = false, select = false, options = [] }) {
+function Field({ label, value, onChange, type = 'text', required = false, select = false, options = [], error, inputRef }) {
   const safeValue = value ?? '';
-  const classes = 'mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10';
+  const classes = `mt-2 h-11 w-full rounded-xl bg-slate-50 px-3 text-sm font-semibold text-slate-800 outline-none transition focus:ring-4 ${error ? 'border border-rose-300 bg-rose-50/10 ring-1 ring-rose-300/20' : 'border border-slate-200 focus:border-blue-500 focus:ring-blue-500/10'}`;
 
   return (
     <label className="block text-sm font-semibold text-slate-700">
@@ -326,15 +391,25 @@ function Field({ label, value, onChange, type = 'text', required = false, select
         {required && <span className="ml-1 text-blue-600">*</span>}
       </span>
       {select ? (
-        <select value={safeValue} onChange={(event) => onChange(event.target.value)} className={classes}>
+        <select ref={inputRef} value={safeValue} onChange={(event) => onChange(event.target.value)} className={classes}>
           {options.map((option) => (
             <option key={option} value={option}>{option}</option>
           ))}
         </select>
       ) : (
-        <input type={type} value={safeValue} onChange={(event) => onChange(event.target.value)} className={classes} />
+        <input ref={inputRef} type={type} value={safeValue} onChange={(event) => onChange(event.target.value)} className={classes} />
       )}
+      {error && <ErrorMessage message={error} />}
     </label>
+  );
+}
+
+function ErrorMessage({ message }) {
+  return (
+    <p className="mt-1.5 flex animate-fade-in items-center gap-1.5 text-xs font-medium text-rose-500/85">
+      <span className="text-xs text-rose-400" aria-hidden="true">⚠️</span>
+      <span>{message}</span>
+    </p>
   );
 }
 

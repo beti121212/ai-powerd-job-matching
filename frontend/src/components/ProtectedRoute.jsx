@@ -56,17 +56,9 @@ const ProtectedRoute = ({
     return <Navigate to="/select-role" state={{ from: location }} replace />;
   }
 
-  const isCvProfileHandoff = location.state?.fromCvUpload === true;
-  const isProfileContinue = location.state?.fromProfileContinue === true;
-  if (!isCvProfileHandoff && !isProfileContinue && ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'].includes(userRole) && ['/select-role', '/cv-upload', '/seeker/cv-upload', '/upload-cv', '/profile', '/seeker/personal-info', '/dashboard', '/seeker/dashboard'].includes(location.pathname)) {
-    const expectedPath = getNextOnboardingStep();
-    const expectedPaths = ['/seeker/cv-upload', '/seeker/upload-cv', '/cv-upload', '/upload-cv'].includes(expectedPath)
-      ? ['/seeker/cv-upload', '/seeker/upload-cv', '/cv-upload', '/upload-cv']
-      : [expectedPath];
-    if (!expectedPaths.includes(location.pathname)) {
-      return <Navigate to={expectedPath} replace />;
-    }
-  }
+  // Route guard forcing the user away from personal-info based on a generic
+  // CV prerequisite assumption has been removed. The CV-skip flag and the
+  // backend profile-status route now drive the navigation decision directly.
 
   // 4. allowedRoles ከተሰጠ የነሱን ፍቃድ ማረጋገጥ
   if (allowedRoles && allowedRoles.length > 0) {

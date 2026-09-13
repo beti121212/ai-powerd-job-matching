@@ -16,13 +16,13 @@ const normalizeBoolean = (value) => {
 };
 
 exports.getAdminDashboardStats = async (req, res) => {
-  const fallbackStats = { totalUsers: 1420, jobSeekersCount: 1180, employersCount: 240, activeJobs: 86, avgMatchScore: 81.4, moderationQueueCount: 2, pipeline: { pending: 342, shortlisted: 128, interviewing: 46, hired: 34, rejected: 185 } };
+  const emptyStats = { totalUsers: 0, jobSeekersCount: 0, employersCount: 0, activeJobs: 0, avgMatchScore: 0, moderationQueueCount: 0, pipeline: { pending: 0, shortlisted: 0, interviewing: 0, hired: 0, rejected: 0 } };
   try {
     const [[users], [seekers], [employers], [jobs], [verification], [reports], [average], [pipeline]] = await Promise.all([
       db.execute('SELECT COUNT(*) AS count FROM users'),
-      db.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'job_seeker'"),
-      db.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'employer'"),
-      db.execute("SELECT COUNT(*) AS count FROM jobs WHERE status = 'published'"),
+      db.execute("SELECT COUNT(*) AS count FROM users WHERE role IN ('job_seeker', 'employee', 'seeker')"),
+      db.execute("SELECT COUNT(*) AS count FROM users WHERE role IN ('employer', 'company', 'recruiter')"),
+      db.execute("SELECT COUNT(*) AS count FROM jobs WHERE LOWER(status) IN ('active', 'published')"),
       db.execute("SELECT COUNT(*) AS count FROM company_profiles WHERE verification_status = 'pending'"),
       db.execute("SELECT COUNT(*) AS count FROM reports WHERE status = 'pending'"),
       db.execute('SELECT AVG(ai_match_score) AS score FROM applications WHERE ai_match_score IS NOT NULL'),
@@ -30,10 +30,11 @@ exports.getAdminDashboardStats = async (req, res) => {
     ]);
     const pipelineStats = { pending: 0, shortlisted: 0, interviewing: 0, hired: 0, rejected: 0 };
     pipeline.forEach((row) => { const key = row.status === 'interview-scheduled' ? 'interviewing' : row.status; if (key in pipelineStats) pipelineStats[key] = Number(row.count || 0); });
-    return res.status(200).json({ success: true, stats: { totalUsers: Number(users[0]?.count || 0), jobSeekersCount: Number(seekers[0]?.count || 0), employersCount: Number(employers[0]?.count || 0), activeJobs: Number(jobs[0]?.count || 0), avgMatchScore: average[0]?.score == null ? fallbackStats.avgMatchScore : Number(Number(average[0].score).toFixed(1)), moderationQueueCount: Number(verification[0]?.count || 0) + Number(reports[0]?.count || 0), pipeline: pipelineStats } });
+    const [pendingJobs] = await db.execute("SELECT COUNT(*) AS count FROM jobs WHERE LOWER(status) = 'pending'");
+    return res.status(200).json({ success: true, stats: { totalUsers: Number(users[0]?.count || 0), jobSeekersCount: Number(seekers[0]?.count || 0), employersCount: Number(employers[0]?.count || 0), activeJobs: Number(jobs[0]?.count || 0), avgMatchScore: average[0]?.score == null ? 0 : Number(Number(average[0].score).toFixed(1)), moderationQueueCount: Number(verification[0]?.count || 0) + Number(pendingJobs[0]?.count || 0) + Number(reports[0]?.count || 0), pipeline: pipelineStats } });
   } catch (error) {
     console.error('Dashboard stats error:', error.message);
-    return res.status(200).json({ success: true, stats: fallbackStats, fallback: true });
+    return res.status(200).json({ success: true, stats: emptyStats, databaseError: true });
   }
 };
 
@@ -41,7 +42,7 @@ exports.getPlatformAnalytics = async (req, res) => {
   try {
     const [seekerCount] = await db.execute("SELECT COUNT(*) AS count FROM users WHERE role = 'job_seeker'");
     const [employerCount] = await db.execute("SELECT COUNT(*) AS total, SUM(CASE WHEN is_verified = TRUE THEN 1 ELSE 0 END) AS verified FROM company_profiles");
-    const [activeJobsCount] = await db.execute("SELECT COUNT(*) AS count FROM jobs WHERE status = 'published'");
+    const [activeJobsCount] = await db.execute("SELECT COUNT(*) AS count FROM jobs WHERE LOWER(status) IN ('active', 'published')");
     const [totalAppsCount] = await db.execute("SELECT COUNT(*) AS count, AVG(ai_match_score) AS avg_score FROM applications");
 
     return res.status(200).json({
@@ -114,8 +115,12 @@ exports.getAllJobsForModeration = async (req, res) => {
 
 exports.getAdminDashboardData = async (req, res) => {
   try {
-    const [analytics, companies, jobs, users, logs, applications, reports, notifications] = await Promise.all([
-      exports.getPlatformAnalyticsData(),
+    const emptyAnalytics = { seekersCount: 0, employersTotal: 0, employersVerified: 0, activeJobsCount: 0, totalApplications: 0, avgMatchScore: 0 };
+    const [analytics, companies, jobs, users, logs, applications, reports, notifications, performance, categories] = await Promise.all([
+      exports.getPlatformAnalyticsData().catch((error) => {
+        console.warn('Admin analytics query skipped:', error.message);
+        return emptyAnalytics;
+      }),
       safeExecute(`SELECT cp.*, u.full_name AS rep_name, u.email AS rep_email, u.phone AS rep_phone FROM company_profiles cp JOIN users u ON cp.employer_id = u.id ORDER BY cp.created_at DESC`),
       safeExecute(`SELECT j.*, cp.company_name, cp.logo_url, cp.location AS company_location, COUNT(a.id) AS total_applicants FROM jobs j LEFT JOIN company_profiles cp ON j.employer_id = cp.employer_id LEFT JOIN applications a ON j.id = a.job_id GROUP BY j.id ORDER BY j.created_at DESC`),
       safeExecute('SELECT id, full_name, email, phone, role, is_verified, is_active, created_at FROM users ORDER BY created_at DESC'),
@@ -123,6 +128,8 @@ exports.getAdminDashboardData = async (req, res) => {
       safeExecute(`SELECT a.id, a.status, a.ai_match_score, a.skills_match_score, a.experience_match_score, a.education_match_score, a.location_match_score, a.applied_at, candidate.full_name AS candidate_name, j.title AS job_title, employer.full_name AS employer_name FROM applications a JOIN users candidate ON candidate.id = a.job_seeker_id JOIN jobs j ON j.id = a.job_id JOIN users employer ON employer.id = j.employer_id ORDER BY a.applied_at DESC LIMIT 100`),
       safeExecute(`SELECT r.*, reporter.full_name AS reporter_name, reporter.email AS reporter_email, target_user.full_name AS reported_user_name, target_job.title AS reported_job_title FROM reports r JOIN users reporter ON reporter.id = r.reporter_id LEFT JOIN users target_user ON target_user.id = r.reported_user_id LEFT JOIN jobs target_job ON target_job.id = r.reported_job_id ORDER BY r.created_at DESC LIMIT 100`),
       safeExecute(`SELECT n.*, u.full_name AS recipient_name FROM notifications n JOIN users u ON u.id = n.user_id ORDER BY n.created_at DESC LIMIT 100`),
+      safeExecute(`SELECT DATE(applied_at) AS day, COUNT(*) AS applications, ROUND(AVG(COALESCE(ai_match_score, 0)), 1) AS average_score FROM applications WHERE applied_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) GROUP BY DATE(applied_at) ORDER BY day`),
+      safeExecute(`SELECT COALESCE(NULLIF(category, ''), 'Other') AS category, COUNT(*) AS total FROM jobs GROUP BY COALESCE(NULLIF(category, ''), 'Other') ORDER BY total DESC LIMIT 6`),
     ]);
 
     return res.status(200).json({
@@ -143,6 +150,8 @@ exports.getAdminDashboardData = async (req, res) => {
       applications: applications[0],
       reports: reports[0],
       notifications: notifications[0],
+      performance: performance[0],
+      categories: categories[0],
       pendingEmployers: companies[0].filter((company) => company.verification_status === 'pending'),
       recentJobs: jobs[0].slice(0, 10),
       recentUsers: users[0].slice(0, 10),
@@ -263,7 +272,10 @@ exports.toggleJobStatus = async (req, res) => {
   try {
     const jobId = req.params.jobId || req.params.id;
     const { status } = req.body;
-    const nextStatus = ['published', 'closed', 'suspended', 'draft'].includes(status) ? status : 'draft';
+    const nextStatus = status === 'active' ? 'published' : status;
+    if (!['pending', 'published', 'closed', 'suspended', 'draft', 'rejected'].includes(nextStatus)) {
+      return res.status(422).json({ success: false, message: 'Invalid job moderation status.' });
+    }
 
     const [rows] = await db.execute('SELECT id FROM jobs WHERE id = ?', [jobId]);
     if (!rows.length) return res.status(404).json({ success: false, message: 'Job not found.' });

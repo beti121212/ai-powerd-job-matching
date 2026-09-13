@@ -11,9 +11,12 @@ export function NotificationProvider({ children }) {
 
   useEffect(() => {
     if (!notification) return undefined;
-    const timeout = window.setTimeout(dismiss, notification.type === 'success' ? 3500 : 5000);
+    const timeout = window.setTimeout(dismiss, 10000);
+    
     return () => window.clearTimeout(timeout);
   }, [notification]);
+
+  const toastType = notification?.type === 'success' ? 'success' : 'error';
 
   return (
     <NotificationContext.Provider value={{ showSuccess, showError, dismiss }}>
@@ -22,15 +25,21 @@ export function NotificationProvider({ children }) {
         <div
           role="status"
           aria-live="polite"
-          className={`fixed top-6 left-1/2 z-[9999] flex -translate-x-1/2 items-center gap-3 rounded-2xl px-6 py-3.5 font-medium text-white shadow-2xl animate-[slideDown_0.25s_ease-out] pointer-events-auto ${notification.type === 'success' ? 'border border-emerald-500/30 bg-emerald-600' : 'border border-rose-500/30 bg-rose-600'}`}
+          className={`fixed top-6 right-6 z-[9999] min-w-[320px] max-w-md overflow-hidden rounded-2xl shadow-2xl transition-all duration-300 ${toastType === 'success' ? 'border border-emerald-500 bg-emerald-600 text-white' : 'border border-red-500 bg-red-600 text-white'}`}
         >
-          {notification.type === 'success' ? <CheckCircle2 className="h-5 w-5 text-white" /> : <AlertCircle className="h-5 w-5 text-white" />}
-          <span>{notification.message}</span>
-          {notification.type === 'error' && (
-            <button type="button" onClick={dismiss} className="ml-2 rounded p-1 text-white/90 hover:bg-white/10" aria-label="Close notification">
-              <X className="h-4 w-4" />
+          <div className="flex items-center gap-3 px-5 py-4">
+            <span className="text-xl">{toastType === 'success' ? '✓' : '⚠️'}</span>
+            <p className="flex-1 text-sm font-semibold leading-snug">{notification.message}</p>
+            <button type="button" onClick={dismiss} className="ml-2 text-lg font-bold text-white/80 hover:text-white" aria-label="Close notification">
+              ✕
             </button>
-          )}
+          </div>
+          <div className="h-1.5 w-full bg-white/20">
+            <div
+              className="h-full bg-white"
+              style={{ animation: 'toastCountdown 10000ms linear forwards', transformOrigin: 'left center' }}
+            />
+          </div>
         </div>
       )}
     </NotificationContext.Provider>

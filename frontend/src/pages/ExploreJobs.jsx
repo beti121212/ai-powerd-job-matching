@@ -1101,12 +1101,17 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
     "Strong communication and problem-solving skills",
   ]);
   const [tags, setTags] = useState("Leadership, Strategy, Communication");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !company) return;
+
+    setIsSubmitting(true);
+    setSubmitError("");
 
     const salaryNumeric =
       parseInt(salaryMin.replace(/[^0-9]/g, ""), 10) || 45000;
@@ -1116,46 +1121,41 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
-    const newJob = {
-      id: Date.now(),
-      title,
-      company,
-      companyAbout: `${company} is an active employer seeking top talent to drive organizational excellence.`,
-      location: `${locationValue}, Ethiopia`,
-      locationValue,
-      type: jobType,
-      workplace,
-      experienceLevel,
-      education,
-      gender,
-      vacancies: Number(vacancies) || 1,
-      deadline,
-      deadlineDate: "2026-09-30",
-      priorityRank: 1,
-      postedAt: "Just now",
-      postedHoursAgo: 0,
-      sector,
-      currency,
-      salary: salaryFormatted,
-      salaryValue: salaryNumeric,
-      aiMatchScore: 96,
-      matchReason: `Newly posted opportunity matching ${sector} and ${experienceLevel} qualifications.`,
-      tags: cleanTags.length > 0 ? cleanTags : [sector, jobType, workplace],
-      shortDescription:
-        shortDescription ||
-        `Exciting opportunity for a ${title} to join ${company}. Lead operational tasks and contribute to team growth.`,
-      fullDescription: `We are seeking a dedicated ${title} to join ${company}. In this role, you will collaborate with key departments and execute core deliverables with high quality.`,
-      responsibilities: responsibilities.filter((r) => r.trim().length > 0),
-      requirements: requirements.filter((r) => r.trim().length > 0),
-      benefits: [
-        "Competitive Compensation Package",
-        "Health & Life Insurance",
-        "Performance Bonus & Career Growth",
-      ],
-    };
+    const typeMap = { "Full-time": "full-time", "Part-time": "part-time", Freelance: "freelance", Contractual: "contract", Volunteer: "contract", "Intern (Paid)": "internship", "Intern (Unpaid)": "internship" };
+    const experienceMap = { "Entry level (0-1 yrs)": "entry-level", "Junior (1-3 yrs)": "mid-level", "Intermediate (3-5 yrs)": "mid-level", "Senior (5+ yrs)": "senior-level", "Expert (8+ yrs)": "executive" };
+    const educationMap = { "Not Required": "any", "Primary School": "high-school", "Middle School": "high-school", "High School": "high-school", Certificate: "associate", Tvet: "associate", Diploma: "associate", "Bachelor’s Degree": "bachelor", "Postgraduate Diploma": "master", "Master’s Degree": "master", Phd: "phd" };
+    const genderMap = { Any: "any", Male: "male", Female: "female" };
 
-    onJobCreated(newJob);
-    onClose();
+    try {
+      const { data } = await api.post("/jobs", {
+        title,
+        company,
+        description: shortDescription || `We are seeking a dedicated ${title} to join ${company}.`,
+        category: sector,
+        sector,
+        jobType: typeMap[jobType] || "full-time",
+        experienceLevel: experienceMap[experienceLevel] || "mid-level",
+        location: locationValue,
+        workMode: workplace.toLowerCase(),
+        gender: genderMap[gender] || "any",
+        education: educationMap[education] || "any",
+        salaryMin: salaryNumeric,
+        salaryMax: parseInt(salaryMax.replace(/[^0-9]/g, ""), 10) || salaryNumeric,
+        currency,
+        applicationDeadline: "2026-09-30",
+        requiredSkills: cleanTags.join(", "),
+        responsibilities: responsibilities.filter((r) => r.trim().length > 0),
+        requirements: requirements.filter((r) => r.trim().length > 0),
+        vacancies: Number(vacancies) || 1,
+      });
+
+      onJobCreated(data.job);
+      onClose();
+    } catch (error) {
+      setSubmitError(error.response?.data?.message || "Unable to submit the job for admin approval.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1291,19 +1291,22 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
           </div>
 
           <div className="pt-4 sticky bottom-0 bg-white p-4 border-t border-slate-200 rounded-2xl flex items-center justify-end gap-3 shadow-lg">
+            {submitError && <p className="mr-auto max-w-sm text-sm font-semibold text-rose-600" role="alert">{submitError}</p>}
             <button
               type="button"
               onClick={onClose}
+              disabled={isSubmitting}
               className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-100 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="px-8 py-3 rounded-xl bg-[#56A2D8] hover:bg-[#2B73A4] text-white font-black text-sm shadow-md hover:shadow-lg transition cursor-pointer flex items-center gap-2"
             >
               <Send className="h-4 w-4" />
-              <span>Publish Job Posting</span>
+              <span>{isSubmitting ? "Submitting..." : "Submit for Approval"}</span>
             </button>
           </div>
         </form>
@@ -1514,65 +1517,91 @@ export default function ExploreJobsPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const fromDashboard = location.state?.fromDashboard === true || searchParams.get('from') === 'dashboard';
-  const [jobs, setJobs] = useState(() => {
-    try {
-      const employerJobs = JSON.parse(
-        localStorage.getItem("employerJobs") || "[]",
-      );
-      const publishedJobs = employerJobs
-        .filter((job) => job.status === "published")
-        .map((job) => ({
-          ...job,
-          company: job.company || "Employer company",
-          location:
-            job.location || job.locationValue || "Location not specified",
-          locationValue: job.locationValue || job.location || "",
-          type: job.type || job.job_type || "Full-time",
-          workplace: job.workplace || job.work_mode || "Hybrid",
-          experienceLevel:
-            job.experienceLevel || `${job.years_of_experience_min || 0}+ years`,
-          education: job.education || job.required_education || "Any",
-          sector: job.sector || job.category || "Other",
-          tags: Array.isArray(job.tags)
-            ? job.tags
-            : String(job.required_skills || "")
-                .split(",")
-                .map((skill) => skill.trim())
-                .filter(Boolean),
-          shortDescription: job.shortDescription || job.description || "",
-          fullDescription: job.fullDescription || job.description || "",
-          deadline: job.deadline || job.application_deadline || "No deadline",
-          deadlineDate: job.deadlineDate || job.application_deadline || "",
-          postedAt: job.postedAt || `Posted ${job.created_at || "recently"}`,
-          postedHoursAgo: Number(job.postedHoursAgo) || 0,
-          priorityRank: Number(job.priorityRank) || 1,
-          salaryValue: Number(job.salaryValue) || 0,
-          aiMatchScore: Number(job.aiMatchScore) || 0,
-          matchReason:
-            job.matchReason ||
-            "Published by an employer on the Job Matching platform.",
-        }));
-      return [
-        ...publishedJobs,
-        ...initialJobs.filter(
-          (job) =>
-            !publishedJobs.some((publishedJob) => publishedJob.id === job.id),
-        ),
-      ];
-    } catch (error) {
-      console.error("Unable to load employer jobs:", error);
-      return initialJobs;
-    }
-  });
+  const normalizeApiJob = (job) => {
+    const rawTags = Array.isArray(job.tags)
+      ? job.tags
+      : Array.isArray(job.required_skills)
+        ? job.required_skills
+        : String(job.required_skills || "")
+            .split(",")
+            .map((skill) => skill.trim())
+            .filter(Boolean);
+
+    const normalizedSalaryMin = Number(job.salary_min ?? job.salaryMin ?? 0);
+    const normalizedSalaryMax = Number(job.salary_max ?? job.salaryMax ?? 0);
+    const priceText =
+      normalizedSalaryMin || normalizedSalaryMax
+        ? `${job.currency || "ETB"} ${normalizedSalaryMin.toLocaleString()} - ${normalizedSalaryMax.toLocaleString()} / mo`
+        : job.salary || "Compensation disclosed upon application";
+
+    return {
+      ...job,
+      id: job.id || job.jobId,
+      company: job.company || job.company_name || "Employer company",
+      location: job.location || job.locationValue || "Location not specified",
+      locationValue: job.locationValue || job.location || "",
+      type: job.type || job.job_type || "Full-time",
+      workplace: job.workplace || job.work_mode || "Hybrid",
+      experienceLevel:
+        job.experienceLevel ||
+        job.experience_level ||
+        "Mid-level",
+      education: job.education || job.required_education || "Any",
+      sector: job.sector || job.category || "Other",
+      gender: job.gender ||
+        (job.gender_preference === "male"
+          ? "Male"
+          : job.gender_preference === "female"
+            ? "Female"
+            : "Any Gender"),
+      vacancies: Number(job.vacancies ?? job.vacancy_count ?? 1),
+      deadline: job.deadline || job.application_deadline || "No deadline",
+      deadlineDate: job.deadlineDate || job.application_deadline || "",
+      postedAt: job.postedAt || (job.created_at ? `Posted ${new Date(job.created_at).toLocaleDateString()}` : "Recently posted"),
+      postedHoursAgo: Number(job.postedHoursAgo) || 0,
+      priorityRank: Number(job.priorityRank) || 1,
+      salaryValue: Number(job.salaryValue ?? normalizedSalaryMin ?? 0),
+      salary: priceText,
+      aiMatchScore: Number(job.aiMatchScore || 0),
+      matchReason:
+        job.matchReason ||
+        "Published by an employer on the Job Matching platform.",
+      tags: rawTags,
+      shortDescription: job.shortDescription || job.description || "",
+      fullDescription: job.fullDescription || job.description || "",
+      responsibilities: Array.isArray(job.responsibilities)
+        ? job.responsibilities
+        : [],
+      requirements: Array.isArray(job.requirements)
+        ? job.requirements
+        : [],
+      benefits: Array.isArray(job.benefits) ? job.benefits : [],
+    };
+  };
+  const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState("");
   useEffect(() => {
     let mounted = true;
-    api.get('/jobs').then(({ data }) => {
-      if (!mounted || !data.jobs?.length) return;
-      const published = data.jobs.map((job) => ({ ...job, company: job.company_name || 'Employer company', workplace: job.work_mode || 'hybrid', type: job.job_type || 'full-time', sector: job.category || 'Other', tags: String(job.required_skills || '').split(',').map((skill) => skill.trim()).filter(Boolean), shortDescription: job.description || '', fullDescription: job.description || '', deadline: job.application_deadline || 'No deadline', postedAt: 'Recently posted', aiMatchScore: 0 }));
-      setJobs((current) => [...published, ...current.filter((item) => !published.some((job) => String(job.id) === String(item.id))) ]);
-    }).catch(() => {});
-    return () => { mounted = false; };
+
+    const loadJobs = async () => {
+      try {
+        const { data } = await api.get('/jobs');
+        if (!mounted) return;
+
+        const rawJobs = Array.isArray(data) ? data : data.jobs || [];
+        setJobs(rawJobs.map(normalizeApiJob));
+      } catch (error) {
+        console.error("Unable to load jobs from API:", error);
+        if (mounted) {
+          setJobs(initialJobs);
+        }
+      }
+    };
+
+    loadJobs();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Pagination / Limit State
@@ -1607,7 +1636,7 @@ export default function ExploreJobsPage() {
   const [isDatePostedOpen, setIsDatePostedOpen] = useState(false);
 
   // Modals State
-  const [isJobPostOpen, setIsJobPostOpen] = useState(false);
+  const [isJobPostOpen, setIsJobPostOpen] = useState(location.state?.openPostJob === true);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [authModalState, setAuthModalState] = useState({
@@ -1690,8 +1719,7 @@ export default function ExploreJobsPage() {
   };
 
   const handleJobCreated = (newJob) => {
-    setJobs((prev) => [newJob, ...prev]);
-    showToast(`🎉 New job "${newJob.title}" posted successfully!`);
+    showToast(`Job "${newJob.title}" submitted for admin approval.`);
   };
 
   const resetFilters = () => {
@@ -1894,7 +1922,13 @@ export default function ExploreJobsPage() {
             {/* 1. TOP RIGHT 'JOB POST' BUTTON */}
             <button
               type="button"
-              onClick={() => setIsJobPostOpen(true)}
+              onClick={() => {
+                if (!localStorage.getItem("token")) {
+                  navigate("/login", { state: { intent: "post-job" } });
+                  return;
+                }
+                setIsJobPostOpen(true);
+              }}
               className="px-5 py-2.5 rounded-xl border border-[#D0E5F5] bg-[#F0F7FC] hover:bg-white text-[#2B73A4] hover:border-[#56A2D8] text-sm sm:text-base font-extrabold shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer flex items-center gap-2.5 tracking-tight group"
             >
               <PlusCircle className="h-5 w-5 text-[#56A2D8] group-hover:scale-110 transition-transform" />

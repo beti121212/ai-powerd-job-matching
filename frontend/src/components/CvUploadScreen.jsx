@@ -177,13 +177,29 @@ const CvUploadScreen = ({ user, onUploadSuccess, onSkip }) => {
     await runCVAnalysis(file);
   };
 
-  const handleSkipAction = () => {
+  const handleSkipAction = async () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const updatedUser = { ...currentUser, onboardingCvUploaded: true, cvSkipped: true };
+    const updatedUser = { ...currentUser, onboardingCvUploaded: true, cvSkipped: true, profileCompleted: false };
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    localStorage.setItem('cv_skipped', 'true');
+    localStorage.setItem('onboarding_step', 'personal_info');
     localStorage.removeItem('pending_cv_data');
     localStorage.removeItem('candidateProfile');
     localStorage.removeItem('cvUploaded');
+
+    try {
+      const token = localStorage.getItem('token');
+      await fetch('/api/seeker/onboarding-step', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ cv_skipped: true, onboarding_step: 'personal_info' }),
+      });
+    } catch (err) {
+      console.error('Failed to sync step to db:', err);
+    }
 
     if (onSkip) {
       onSkip();
@@ -196,8 +212,8 @@ const CvUploadScreen = ({ user, onUploadSuccess, onSkip }) => {
   };
 
   return (
-    <main className="min-h-[85vh] bg-slate-50/70 px-4 py-8 sm:px-6 lg:py-16">
-      <div className="mx-auto grid w-full max-w-6xl items-stretch gap-6 lg:grid-cols-[1.1fr_1fr] lg:gap-8">
+    <main className="min-h-[85vh] px-4 py-8 sm:px-6 lg:py-16">
+      <div className="mx-auto grid w-full max-w-6xl items-stretch gap-0 lg:grid-cols-[1.1fr_1fr]">
         <aside className="relative min-h-112 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950 shadow-2xl shadow-slate-900/10 sm:min-h-136 lg:min-h-full">
           <img src={cvImage} alt="Professional CV preview" className="absolute inset-0 h-full w-full scale-105 object-cover" />
           <div className="absolute inset-0 bg-linear-to-t from-slate-950/90 via-slate-950/20 to-transparent" />

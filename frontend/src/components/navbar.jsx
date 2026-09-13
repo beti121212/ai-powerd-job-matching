@@ -8,7 +8,8 @@ import {
   UserPlus,
   X,
   ChevronDown,
-  ArrowRight,
+  Play,
+  Repeat,
 } from 'lucide-react';
 
 // የፎቶ Path — use local asset fallback in project
@@ -16,6 +17,7 @@ import siteLogo from '../pages/images/logo1.png';
 import { useAuth } from '../context/AuthContext';
 import LogoutFlowModals from './LogoutFlowModals';
 import { getNextOnboardingStep } from '../utils/applicationFlow';
+import API from '../services/api';
 
 export default function Navbar() {
   const location = useLocation();
@@ -35,10 +37,116 @@ export default function Navbar() {
   const isSeekerDashboardPage = ['/dashboard', '/seeker-dashboard', '/seekerDashboard'].includes(location.pathname);
   const displayName = user?.name || user?.full_name || user?.email || 'User';
   const avatarUrl = user?.avatarUrl || user?.avatar_url;
-  const resumeOnboarding = () => {
+
+  const getStoredUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  };
+
+  const isOnboardingInProgress = () => {
+    const storedUser = getStoredUser();
+    const role = String(storedUser.role || user?.role || 'job_seeker').toLowerCase();
+    const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
+    const employerRoles = ['employer', 'company', 'recruiter'];
+
+    if (seekerRoles.includes(role)) {
+      const hasUploadedCv = Boolean(localStorage.getItem('pending_cv_data') || storedUser.onboardingCvUploaded || storedUser.has_cv || storedUser.cvFileName);
+      const isProfileComplete = Boolean(storedUser.profileCompleted || storedUser.onboardingProfileCompleted || storedUser.profileComplete);
+      return !isProfileComplete || !hasUploadedCv;
+    }
+
+    if (employerRoles.includes(role)) {
+      return !Boolean(storedUser.companyVerified || storedUser.companyProfileComplete);
+    }
+
+    return false;
+  };
+
+  const getRoleLabel = (roleName) => {
+    const normalized = String(roleName || '').toLowerCase().replace(/[\s-]+/g, '_');
+    if (['employer', 'company', 'recruiter'].includes(normalized)) return 'Employer';
+    if (['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'].includes(normalized)) return 'Job Seeker';
+    return 'Job Seeker';
+  };
+
+  const handleResumeProgress = async () => {
+    const storedUser = getStoredUser();
+    const activeRole = String(storedUser.role || localStorage.getItem('activeRole') || user?.role || 'job_seeker').toLowerCase().replace(/[\s-]+/g, '_');
+    const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
+    const employerRoles = ['employer', 'company', 'recruiter'];
+
     setProfileMenuOpen(false);
+
+    if (seekerRoles.includes(activeRole)) {
+      try {
+        const { data } = await API.get('/seeker/profile-status');
+        const step = String(data?.onboarding_step || 'cv_upload');
+        const cvSkipped = Boolean(data?.cv_skipped);
+        const profileCompleted = Boolean(data?.profile_completed);
+
+        if (profileCompleted || step === 'completed') {
+          navigate('/seeker-dashboard', { replace: true });
+        } else if (step === 'personal_info' || cvSkipped) {
+          console.log('Navigating from Continue button to personal-info');
+          navigate('/seeker/personal-info', { replace: true });
+        } else {
+          navigate('/seeker/cv-upload', { replace: true });
+        }
+        return;
+      } catch (error) {
+        console.warn('Profile status fallback used:', error?.message || error);
+      }
+
+      const localStep = String(localStorage.getItem('onboarding_step') || '').trim().toLowerCase();
+      const isCvSkipped = String(localStorage.getItem('cv_skipped') || '').toLowerCase() === 'true';
+      const localProfileComplete = Boolean(storedUser.profileCompleted || storedUser.onboardingProfileCompleted || storedUser.profileComplete || localStorage.getItem('userProfile'));
+
+      if (localProfileComplete || localStep === 'completed') {
+        navigate('/seeker-dashboard', { replace: true });
+      } else if (localStep === 'personal_info' || isCvSkipped) {
+        console.log('Navigating from Continue button to personal-info');
+        navigate('/seeker/personal-info', { replace: true });
+      } else {
+        navigate('/seeker/cv-upload', { replace: true });
+      }
+      return;
+    }
+
+    if (employerRoles.includes(activeRole)) {
+      const isCompanyVerified = Boolean(storedUser.companyVerified || storedUser.companyProfileComplete);
+      if (isCompanyVerified) {
+        navigate('/employer-dashboard', { replace: true });
+      } else {
+        navigate('/employer/onboarding', { replace: true });
+      }
+      return;
+    }
+
     navigate(getNextOnboardingStep(), { replace: true });
   };
+
+  const handleAvatarClick = (e) => {
+    e.stopPropagation();
+    setProfileMenuOpen((open) => !open);
+  };
+
+  const resumeOnboarding = () => {
+    handleResumeProgress();
+  };
+
+  const toggleProfileMenu = () => {
+    setProfileMenuOpen((open) => !open);
+  };
+
+  const handleSwitchRole = () => {
+    setProfileMenuOpen(false);
+    localStorage.removeItem('activeRole');
+    navigate('/role-selection', { replace: true });
+  };
+
   const goToDashboard = () => {
     setProfileMenuOpen(false);
     navigate(isEmployer ? '/employer/dashboard' : isAdmin ? '/admin-dashboard' : '/dashboard');
@@ -145,17 +253,43 @@ export default function Navbar() {
         <div className="hidden lg:flex items-center gap-3 shrink-0 ml-auto">
           {isAuthenticated && (
             <div ref={profileMenuRef} className="relative">
-              <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} className="flex min-h-11 items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-label="Open account menu">
-                {avatarUrl ? <img src={avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" /> : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{displayName.charAt(0).toUpperCase()}</div>}
-                <span className="max-w-40 truncate">{displayName}</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {profileMenuOpen && <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl" role="menu">
-                <div className="border-b border-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">{displayName}</div>
-                <button type="button" onClick={resumeOnboarding} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700" role="menuitem"><ArrowRight className="h-4 w-4" /><span>Resume Onboarding</span></button>
-                <button type="button" onClick={goToDashboard} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-100" role="menuitem"><LayoutDashboard className="h-4 w-4" /><span>Go to Dashboard</span></button>
-                <button type="button" onClick={handleLogout} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 transition hover:bg-red-50" role="menuitem"><LogOut className="h-4 w-4" /><span>Log Out</span></button>
-              </div>}
+              <div className="flex min-h-11 items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100">
+                <button
+                  id="user-avatar-circle"
+                  type="button"
+                  onClick={handleAvatarClick}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 font-black text-blue-700 shadow-sm ring-2 ring-white transition hover:bg-blue-200"
+                  aria-label="Resume progress shortcut"
+                >
+                  <span className="select-none">Y</span>
+                </button>
+                <button type="button" onClick={toggleProfileMenu} className="flex items-center gap-1.5 text-slate-700" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-label="Open account menu">
+                  <span className="max-w-40 truncate font-bold text-slate-700">{displayName}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl" role="menu">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-3 py-3">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black text-slate-900">{displayName}</span>
+                      <span className="mt-1 inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-700">{getRoleLabel(role)}</span>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => { setProfileMenuOpen(false); handleResumeProgress(); }} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700" role="menuitem">
+                    <Play className="h-4 w-4" />
+                    <span>Continue Profile Setup</span>
+                  </button>
+                  <button type="button" onClick={handleSwitchRole} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-100" role="menuitem">
+                    <Repeat className="h-4 w-4" />
+                    <span>Switch Role</span>
+                  </button>
+                  <button type="button" onClick={handleLogout} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 transition hover:bg-red-50" role="menuitem">
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
           {!isAuthenticated && !isSeekerDashboardPage && (
@@ -259,11 +393,11 @@ export default function Navbar() {
 
             {isAuthenticated && (
               <div ref={profileMenuRef} className="relative pt-3 mt-2 border-t border-slate-100">
-                <button type="button" onClick={() => setProfileMenuOpen((open) => !open)} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-label="Open account menu">
+                <button type="button" onClick={handleResumeProgress} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-label="Open account menu">
                   {avatarUrl ? <img src={avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">{displayName.charAt(0).toUpperCase()}</div>}
                   <span className="flex-1 truncate">{displayName}</span><ChevronDown className={`h-4 w-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
-                {profileMenuOpen && <div className="mt-1 space-y-1 px-1"><button type="button" onClick={() => { resumeOnboarding(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700"><ArrowRight className="w-5 h-5" /><span>Resume Onboarding</span></button><button type="button" onClick={() => { goToDashboard(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"><LayoutDashboard className="w-5 h-5" /><span>Go to Dashboard</span></button><button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50"><LogOut className="w-5 h-5" /><span>Log Out</span></button></div>}
+                {profileMenuOpen && <div className="mt-1 space-y-1 px-1"><button type="button" onClick={() => { handleResumeProgress(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700"><Play className="w-5 h-5" /><span>{isOnboardingInProgress() ? 'Continue Profile Setup' : 'Dashboard / My Profile'}</span></button><button type="button" onClick={() => { goToDashboard(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"><LayoutDashboard className="w-5 h-5" /><span>Go to Dashboard</span></button><button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50"><LogOut className="w-5 h-5" /><span>Log Out</span></button></div>}
               </div>
             )}
             {!isAuthenticated && !isSeekerDashboardPage && (

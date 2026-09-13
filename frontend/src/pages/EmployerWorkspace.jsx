@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import confetti from "canvas-confetti";
 import {
@@ -20,6 +20,7 @@ import {
   Menu,
   MessageCircle,
   Moon,
+  PauseCircle,
   Plus,
   Search,
   Settings,
@@ -34,6 +35,12 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import {
+  PIPELINE_STATUS_OPTIONS,
+  getPipelineStatusClasses,
+  getPipelineStatusLabel,
+  normalizePipelineStatus,
+} from "../utils/pipelineStatus";
 import CompanyReviews from "../components/company/CompanyReviews";
 import CompanyQA from "../components/company/CompanyQA";
 import TalentPool from "../components/employer/TalentPool";
@@ -49,6 +56,7 @@ import {
 } from "../components/employer/EmployerEngagementViews";
 import CompanyLegal from "../components/employer/CompanyLegal";
 import LogoutFlowModals from "../components/LogoutFlowModals";
+import { EmployerHeader } from "../components/layout/EmployerHeader";
 import jobMatchingImage from "./images/logo.jpg";
 
 const stages = [
@@ -68,29 +76,68 @@ const stages = [
   ["settings", "Settings", Settings],
   ["summary", "AI Candidate Summary", Sparkles],
 ];
-const stageLabelsAm = {
-  overview: "á‹³áˆ½á‰¦áˆ­á‹µ",
-  profile: "á‹¨á‹µáˆ­áŒ…á‰µ áˆ˜áŒˆáˆˆáŒ«",
-  post: "áˆµáˆ« áˆˆáŒ¥á",
-  jobs: "á‹¨áŠ¥áŠ” áˆµáˆ«á‹Žá‰½",
-  applications: "áˆ›áˆ˜áˆáŠ¨á‰»á‹Žá‰½",
-  matching: "AI áˆ›á‹›áˆ˜áŒƒ",
-  shortlist: "á‹¨á‰°áˆ˜áˆ¨áŒ¡",
-  interviews: "á‰ƒáˆˆ áˆ˜áŒ á‹­á‰†á‰½",
-  hired: "á‰…áŒ¥áˆ­ áŠ¥áŠ“ áˆ›áˆµáŒ€áˆ˜áˆªá‹«",
-  "talent-pool":
-    "á‹¨á‰°áˆ˜áˆ¨áŒ¡ áŠ¥áŒ©á‹Žá‰½ / áŠ áŒ á‰ƒáˆ‹á‹­ áŠ áˆ˜áˆáŠ«á‰¾á‰½",
-  reviews: "á‹¨áŒáˆáŒˆáˆ› áŠ áˆµá‰°á‹³á‹°áˆ­",
-  messages: "áˆ˜áˆá‹•áŠ­á‰¶á‰½",
-  notifications: "áˆ›áˆ³á‹ˆá‰‚á‹«á‹Žá‰½",
-  settings: "á‰…áŠ•á‰¥áˆ®á‰½",
-  summary: "AI á‹¨áŠ¥áŒ© áˆ›áŒ á‰ƒáˆˆá‹«",
-};
+const jobSectors = [
+  "Select sector",
+  "Agriculture",
+  "Architecture & Urban Planning",
+  "Beauty & Grooming",
+  "Brokerage & Case Closing",
+  "Chemical & Biomedical Engineering",
+  "Construction & Civil Engineering",
+  "Creative Art & Design",
+  "Customer Service & Care",
+  "Documentation & Writing",
+  "Event Management & Organization",
+  "Food & Drink Preparation / Service",
+  "Healthcare",
+  "Hospitality & Tourism",
+  "Human Resource & Talent Management",
+  "Information Technology",
+  "Installation & Maintenance",
+  "Janitorial & Office Services",
+  "Labor & Masonry",
+  "Logistics & Supply Chain",
+  "Mechanical & Electrical Engineering",
+  "Multimedia Content Production",
+  "Pharmaceutical",
+  "Psychiatry, Psychology & Social Work",
+  "Sales & Promotion",
+  "Secretarial & Office Management",
+  "Security & Safety",
+  "Retail & Office Support",
+  "Software Design & Development",
+  "Transportation & Delivery",
+  "Veterinary",
+  "Woodwork & Carpentry",
+  "Fashion / Clothing & Textile",
+  "Media & Entertainment",
+  "Environmental, Mining & Energy Engineering",
+  "Law & Legal Advocacy",
+  "Marketing",
+  "Journalism & Communication",
+  "Business Administration & Operations",
+  "Research Services",
+  "Data Science & Analytics",
+  "Teaching & Education",
+  "Tutoring, Training & Mentorship",
+  "Gardening & Landscaping",
+  "Horticulture",
+  "Livestock & Animal Husbandry",
+  "Manufacturing & Production",
+  "Purchasing & Procurement",
+  "Translation & Transcription",
+  "Accounting & Finance",
+  "Advisory & Consultancy",
+  "Aeronautics & Aerospace",
+];
+
 const blankJob = {
   title: "",
-  department: "Engineering",
+  department: "Select sector",
+  experience_level: "mid-level",
   job_type: "full-time",
   work_mode: "hybrid",
+  gender_preference: "any",
   location: "",
   salary_min: "",
   salary_max: "",
@@ -125,16 +172,28 @@ function ScoreRing({ score, size = 54 }) {
   );
 }
 function Toast({ toast, onClose }) {
+  if (!toast) return null;
+
+  const isError = toast.type === "error";
+
   return (
-    toast && (
-      <div className="fixed bottom-5 right-5 z-[70] flex max-w-sm items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-2xl">
-        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-        {toast}
-        <button onClick={onClose} className="ml-2 text-slate-400">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-    )
+    <div
+      className={`fixed right-6 top-6 z-[70] flex max-w-sm items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-2xl ${
+        isError
+          ? "border-red-500 bg-red-600 text-white"
+          : "border-emerald-500 bg-emerald-600 text-white"
+      }`}
+    >
+      {isError ? (
+        <AlertCircle className="h-5 w-5 text-white" />
+      ) : (
+        <CheckCircle2 className="h-5 w-5 text-emerald-200" />
+      )}
+      <span className="flex-1">{toast.message}</span>
+      <button onClick={onClose} className="ml-2 text-white/80 hover:text-white">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
   );
 }
 function Field({ label, children }) {
@@ -203,12 +262,20 @@ export default function EmployerWorkspace() {
   const [matchingJobId, setMatchingJobId] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [selectedJobFilter, setSelectedJobFilter] = useState("all");
   const [minScore, setMinScore] = useState(0);
-  const [toast, setToast] = useState("");
+  const [jobStatusFilter, setJobStatusFilter] = useState("all");
+  const [jobSearchQuery, setJobSearchQuery] = useState("");
+  const [toast, setToast] = useState(null);
   const [dark, setDark] = useState(false);
+  const toastTimeoutRef = useRef(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleDraft, setScheduleDraft] = useState({
+    date: "",
+    time: "",
+  });
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [logoutSession, setLogoutSession] = useState(null);
   const [schedule, setSchedule] = useState({
@@ -218,31 +285,25 @@ export default function EmployerWorkspace() {
     link: "",
     notes: "",
   });
-  const [language, setLanguage] = useState(
-    () => localStorage.getItem("employerLanguage") || "EN",
-  );
-  const languageOptions = [
-    ["EN", "English"],
-    ["AM", "áŠ áˆ›áˆ­áŠ›"],
-    ["OM", "Afaan Oromoo"],
-    ["TI", "á‰µáŒáˆ­áŠ›"],
-  ];
-  const isAmharic = language === "AM";
-  const labelForStage = (id, english) =>
-    isAmharic ? stageLabelsAm[id] : english;
-  const changeLanguage = (event) => {
-    const nextLanguage = event.target.value;
-    setLanguage(nextLanguage);
-    localStorage.setItem("employerLanguage", nextLanguage);
-  };
   const handleLogout = () => {
     setLogoutSession({ token, user });
     setLogoutOpen(true);
   };
 
-  const notify = (message) => {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 3000);
+  const handleHeaderLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const notify = (message, type = "success") => {
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+
+    setToast({ message, type });
+    toastTimeoutRef.current = window.setTimeout(() => setToast(null), 5000);
   };
   const validateJob = () => {
     const missing = [
@@ -253,7 +314,7 @@ export default function EmployerWorkspace() {
       .filter(([, value]) => !String(value || "").trim())
       .map(([label]) => label);
     if (missing.length) {
-      notify(`Please complete: ${missing.join(", ")}`);
+      notify(`Please complete: ${missing.join(", ")}`, "error");
       setWizard(1);
       return false;
     }
@@ -348,8 +409,9 @@ export default function EmployerWorkspace() {
           api.get("/employer/onboarding"),
           api.get("/employer/interviews"),
           api.get("/employer/profile"),
-          api.get("/employer/jobs"),
+          api.get("/employer/my-jobs"),
         ]);
+        console.log("--> [MY JOBS API RESPONSE]:", jobsResponse?.data);
         if (!mounted) return;
         setPipeline(pipelineResponse?.data?.applications || []);
         setOffers(offersResponse?.data?.offers || []);
@@ -405,6 +467,46 @@ export default function EmployerWorkspace() {
       mounted = false;
     };
   }, [token]);
+  const activeJobs = useMemo(
+    () =>
+      jobs.filter((job) =>
+        ["published", "active"].includes(
+          String(job.status || "").toLowerCase(),
+        ),
+      ),
+    [jobs],
+  );
+  const publishedJobs = useMemo(
+    () =>
+      jobs.filter(
+        (job) => normalizeJobStatus(job.status) === "active",
+      ),
+    [jobs],
+  );
+  const scheduledJobs = useMemo(
+    () =>
+      jobs.filter(
+        (job) => normalizeJobStatus(job.status) === "scheduled",
+      ),
+    [jobs],
+  );
+  const draftJobs = useMemo(
+    () =>
+      jobs.filter(
+        (job) => normalizeJobStatus(job.status) === "draft",
+      ),
+    [jobs],
+  );
+  useEffect(() => {
+    if (
+      selectedJobFilter !== "all" &&
+      !activeJobs.some(
+        (job) => String(job.id) === String(selectedJobFilter),
+      )
+    ) {
+      setSelectedJobFilter("all");
+    }
+  }, [activeJobs, selectedJobFilter]);
   const filtered = useMemo(
     () =>
       applications.filter(
@@ -413,7 +515,7 @@ export default function EmployerWorkspace() {
             `${item.name} ${item.jobTitle}`
               .toLowerCase()
               .includes(search.toLowerCase())) &&
-          (status === "all" || item.status === status) &&
+          (status === "all" || normalizePipelineStatus(item.status) === status) &&
           Number(item.matchScore || 0) >= minScore,
       ),
     [applications, search, status, minScore],
@@ -422,14 +524,17 @@ export default function EmployerWorkspace() {
     active: jobs.filter((item) => ["published", "active"].includes(item.status)).length,
     applicants: applications.length,
     high: applications.filter((item) => item.matchScore >= 80).length,
-    shortlisted: applications.filter((item) => item.status === "shortlisted")
-      .length,
+    shortlisted: applications.filter(
+      (item) => normalizePipelineStatus(item.status) === "shortlisted",
+    ).length,
     interviews: interviews.filter((item) =>
       ["scheduled", "upcoming"].includes(
         String(item.interview_status || item.status || "").toLowerCase(),
       ),
     ).length,
-    hired: applications.filter((item) => item.status === "hired").length,
+    hired: applications.filter(
+      (item) => normalizePipelineStatus(item.status) === "hired",
+    ).length,
   };
   const nextInterview = interviews
     .filter((item) =>
@@ -447,26 +552,52 @@ export default function EmployerWorkspace() {
         nextInterview.scheduled_at || nextInterview.scheduledAt,
       ).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`
     : "No upcoming interviews";
+  const unreviewedCount = applications.filter((item) =>
+    ["applied", "under-review"].includes(
+      normalizePipelineStatus(item.status),
+    ),
+  ).length;
+  const expiringJob = jobs
+    .filter(
+      (job) =>
+        job.application_deadline &&
+        new Date(job.application_deadline).getTime() > Date.now() &&
+        new Date(job.application_deadline).getTime() - Date.now() <
+          3 * 24 * 60 * 60 * 1000,
+    )
+    .sort(
+      (first, second) =>
+        new Date(first.application_deadline) - new Date(second.application_deadline),
+    )[0];
+  const pipelineStages = [
+    { label: "Applied", value: applications.length || 0, percent: 100, tone: "bg-blue-600" },
+    { label: "Screened", value: Math.max(0, Math.floor((applications.filter((item) => ["shortlisted", "under-review", "interview", "hired"].includes(normalizePipelineStatus(item.status))).length / Math.max(applications.length || 1, 1)) * 100)), percent: 45, tone: "bg-violet-600" },
+    { label: "Interview", value: applications.filter((item) => normalizePipelineStatus(item.status) === "interview").length || 0, percent: 20, tone: "bg-amber-500" },
+    { label: "Offer", value: applications.filter((item) => normalizePipelineStatus(item.status) === "hired").length || 0, percent: 8, tone: "bg-emerald-500" },
+    { label: "Hired", value: stats.hired || 0, percent: 4, tone: "bg-emerald-700" },
+  ];
   const updateApplication = async (id, nextStatus) => {
+    const normalizedStatus = normalizePipelineStatus(nextStatus);
+
     setApplications((current) =>
       current.map((item) =>
-        item.id === id ? { ...item, status: nextStatus } : item,
+        item.id === id ? { ...item, status: normalizedStatus } : item,
       ),
     );
     setPipeline((current) =>
       current.map((item) =>
-        item.id === id ? { ...item, status: nextStatus } : item,
+        item.id === id ? { ...item, status: normalizedStatus } : item,
       ),
     );
     try {
       await api.patch(`/employer/applications/${id}/status`, {
-        status: nextStatus,
+        status: normalizedStatus,
       });
     } catch (error) {
       notify(error?.response?.data?.message || "Unable to update candidate.");
       return;
     }
-    notify(`Candidate moved to ${nextStatus}`);
+    notify(`Candidate moved to ${getPipelineStatusLabel(normalizedStatus)}`);
   };
   const handleSendOffer = async (application) => {
     const offeredSalary = window.prompt(
@@ -537,11 +668,12 @@ export default function EmployerWorkspace() {
   const enhanceJob = () =>
     setJob((current) => ({
       ...current,
-      description: `Responsibilities:\nÃ¢â‚¬Â¢ Own high-quality ${current.title || "product"} delivery from discovery to launch.\nÃ¢â‚¬Â¢ Collaborate with cross-functional teams and document decisions.\nÃ¢â‚¬Â¢ Improve reliability, accessibility, and measurable user outcomes.\n\nScreening questions:\n1. Tell us about a similar project you shipped.\n2. How do you balance speed and quality?`,
+      description: `Responsibilities:\n• Own high-quality ${current.title || "product"} delivery from discovery to launch.\n• Collaborate with cross-functional teams and document decisions.\n• Improve reliability, accessibility, and measurable user outcomes.\n\nScreening questions:\n1. Tell us about a similar project you shipped.\n2. How do you balance speed and quality?`,
     }));
   const saveJob = async (nextStatus = "draft", scheduledAt = null) => {
     const payload = {
       ...job,
+      status: nextStatus === "scheduled" ? "scheduled" : nextStatus,
       description: job.description || "",
       sector: job.department,
       jobType: job.job_type,
@@ -550,18 +682,22 @@ export default function EmployerWorkspace() {
       salaryMax: job.salary_max,
       applicationDeadline: job.application_deadline,
       requiredSkills: job.required_skills,
+      scheduledDate:
+        scheduledAt || scheduleDraft.date || scheduleDraft.time
+          ? `${scheduleDraft.date || scheduledAt?.slice(0, 10) || ""}${scheduleDraft.time ? `T${scheduleDraft.time}` : scheduledAt?.slice(11) || ""}`
+          : null,
     };
     setLoading(true);
     try {
       const response = editingJobId
         ? await api.put(`/employer/jobs/${editingJobId}`, payload)
-        : await api.post("/employer/jobs", payload);
+        : await api.post("/jobs", payload);
       let savedJob = response.data;
       const savedId = savedJob.id || savedJob.jobId;
       if (nextStatus === "published" || nextStatus === "scheduled")
         savedJob = (
           await api.patch(`/employer/jobs/${savedId}/status`, {
-            status: "published",
+            status: nextStatus === "scheduled" ? "scheduled" : "published",
           })
         ).data;
       savedJob = { ...savedJob, id: savedJob.id || savedId };
@@ -583,24 +719,63 @@ export default function EmployerWorkspace() {
       if (nextStatus === "published")
         confetti({ particleCount: 120, spread: 70, origin: { y: 0.65 } });
     } catch (error) {
-      notify(error?.response?.data?.message || "Unable to save job.");
+      const serverMessage =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to save job.";
+      notify(serverMessage, "error");
     } finally {
       setLoading(false);
     }
   };
   const toggleJob = async (item) => {
-    const next = item.status === "published" ? "paused" : "published";
+    const normalizedStatus = normalizeJobStatus(item.status);
+    const next = normalizedStatus === "active" ? "paused" : "published";
+
+    console.log(
+      "--> [FRONTEND STATUS TRIGGER] Attempting to update Job ID:",
+      item.id,
+      "to Status:",
+      next,
+    );
+
+    if (!item.id || item.id === "undefined") {
+      console.error(
+        "--> [FATAL] Cannot update status: jobId is undefined or invalid!",
+      );
+      notify("Error: Invalid Job ID. Please publish the job first.", "error");
+      return;
+    }
+
     setJobs((current) =>
       current.map((jobItem) =>
         jobItem.id === item.id ? { ...jobItem, status: next } : jobItem,
       ),
     );
+
     try {
-      await api.patch(`/employer/jobs/${item.id}/status`, { status: next });
+      const response = await api.patch(`/employer/jobs/${item.id}/status`, {
+        status: next,
+      });
+
+      console.log("--> [BACKEND RESPONSE]:", response.status, response.data);
+
+      if (response?.data?.success === false) {
+        throw new Error(response.data.error || "Failed to update job status.");
+      }
+
+      notify(`Job ${next}`);
     } catch (requestError) {
-      console.warn('Unable to update job status:', requestError);
+      console.error("--> [STATUS ERROR DETAILS]:", requestError);
+      const message =
+        requestError?.response?.data?.error ||
+        requestError?.response?.data?.message ||
+        requestError?.message ||
+        "Failed to update job status.";
+
+      notify(message, "error");
     }
-    notify(`Job ${next}`);
   };
   const deleteJob = async (id) => {
     setJobs((current) => current.filter((item) => item.id !== id));
@@ -616,8 +791,10 @@ export default function EmployerWorkspace() {
     setJob({
       title: item.title || "",
       department: item.department || item.category || "Engineering",
+      experience_level: item.experience_level || item.experienceLevel || "mid-level",
       job_type: item.job_type || "full-time",
       work_mode: item.work_mode || "hybrid",
+      gender_preference: item.gender_preference || item.genderPreference || "any",
       location: item.location || "",
       salary_min: item.salary_min || "",
       salary_max: item.salary_max || "",
@@ -658,7 +835,7 @@ export default function EmployerWorkspace() {
       setApplications((current) =>
         current.map((application) =>
           application.id === selected.id
-            ? { ...application, status: "interview-scheduled" }
+            ? { ...application, status: "interview" }
             : application,
         ),
       );
@@ -683,119 +860,231 @@ export default function EmployerWorkspace() {
   const employeeName = user?.full_name || user?.name || "Employee";
   const title =
     active === "overview"
-      ? isAmharic
-        ? `áŠ¥áŠ•áŠ³áŠ• á‹ˆá‹° á‹³áˆ½á‰¦áˆ­á‹µ á‰ á‹°áˆ…áŠ“ áˆ˜áŒ¡á£ ${employeeName}`
-        : `Welcome, ${employeeName}`
-      : labelForStage(
-          active,
-          stages.find(([id]) => id === active)?.[1] || "Dashboard",
-        );
+      ? `Welcome, ${employeeName}`
+      : stages.find(([id]) => id === active)?.[1] || "Dashboard";
   const companyName = company.company_name || user?.full_name || "Your Company";
-  const renderApplications = (items = filtered) =>
-    active === "matching" ? (
-      <TopCandidatesList
-        jobId={matchingJobId}
-        onSelectCandidate={setAiCandidate}
-        onShortlist={(candidate) =>
-          updateApplication(candidate.applicationId, "shortlisted")
-        }
-        onSchedule={(candidate) => {
-          setSelected({
-            ...candidate,
-            id: candidate.applicationId,
-            candidateId: candidate.candidateId,
-          });
-          setShowSchedule(true);
-        }}
-      />
-    ) : (
-      <div className={`overflow-hidden rounded-2xl border ${card}`}>
+
+  const normalizeJobStatus = (statusValue) => {
+    const value = String(statusValue || "draft").trim().toLowerCase();
+    return value === "published" ? "active" : value;
+  };
+
+  const getJobStatusClasses = (statusValue) => {
+    const normalized = normalizeJobStatus(statusValue);
+
+    switch (normalized) {
+      case "active":
+        return "border border-emerald-200 bg-emerald-50 text-emerald-700";
+      case "paused":
+        return "border border-amber-200 bg-amber-50 text-amber-700";
+      case "draft":
+        return "border border-slate-200 bg-slate-100 text-slate-600";
+      case "closed":
+      case "expired":
+      case "archived":
+        return "border border-rose-200 bg-rose-50 text-rose-700";
+      default:
+        return "border border-slate-200 bg-slate-100 text-slate-600";
+    }
+  };
+
+  const renderApplications = (items = filtered) => {
+    if (active === "matching") {
+      return (
+        <TopCandidatesList
+          jobId={matchingJobId}
+          onSelectCandidate={setAiCandidate}
+          onShortlist={(candidate) =>
+            updateApplication(candidate.applicationId, "shortlisted")
+          }
+          onSchedule={(candidate) => {
+            setSelected({
+              ...candidate,
+              id: candidate.applicationId,
+              candidateId: candidate.candidateId,
+            });
+            setShowSchedule(true);
+          }}
+        />
+      );
+    }
+
+    const filteredCandidates = (items || []).filter((item) => {
+      if (selectedJobFilter === "all") return true;
+      const itemJobId = String(
+        item.job_id ?? item.jobId ?? item.job?.id ?? "",
+      );
+      return itemJobId === String(selectedJobFilter);
+    });
+    const visibleCandidates =
+      active === "overview" ? filteredCandidates.slice(0, 4) : filteredCandidates;
+
+    const getStatusClass = (statusValue) =>
+      getPipelineStatusClasses(statusValue);
+
+    const getStatusLabel = (statusValue) =>
+      getPipelineStatusLabel(statusValue);
+
+    return (
+      <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+              <span>Recent Applicants & AI Matches</span>
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                {filteredCandidates.length}
+              </span>
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Evaluate incoming resumes, AI compatibility scores, and take quick hiring actions.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="whitespace-nowrap text-xs font-semibold text-slate-500">
+              Filter by Job:
+            </label>
+            <select
+              value={selectedJobFilter}
+              onChange={(event) => setSelectedJobFilter(event.target.value)}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="all">All Posted Jobs ({activeJobs.length})</option>
+              {activeJobs.map((job) => (
+                <option key={job.id} value={job.id}>
+                  {job.title}
+                </option>
+              ))}
+            </select>
+
+            {active === "overview" && (
+              <button
+                onClick={() => navigate("/employer/candidates")}
+                className="ml-2 flex items-center gap-1 whitespace-nowrap text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                <span>View all</span>
+                <span>→</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-[#174f73] bg-[#216f9f] text-xs font-extrabold uppercase tracking-wider text-white dark:border-slate-700 dark:bg-[#174f73] dark:text-white">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-blue-200 bg-blue-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-700">
               <tr>
-                <th className="px-5 py-4 font-black">Candidate</th>
-                <th className="font-black">Role</th>
-                <th className="font-black">AI Score</th>
-                <th className="font-black">Status</th>
-                <th className="px-5 font-black">Actions</th>
+                <th className="px-5 py-3.5">Candidate</th>
+                <th className="px-4 py-3.5">Applied Job Role</th>
+                <th className="px-4 py-3.5 text-center">AI Match</th>
+                <th className="px-4 py-3.5">Applied Date</th>
+                <th className="px-4 py-3.5">Hiring Status</th>
+                <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {items.map((item) => {
-                const statusClass = String(item.status || "under-review")
-                  .toLowerCase()
-                  .replace(/\s+/g, "-");
-                return (
+
+            <tbody className="divide-y divide-slate-100">
+              {visibleCandidates.length > 0 ? (
+                visibleCandidates.map((candidate) => (
                   <tr
-                    key={item.id}
-                    className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50"
+                    key={candidate.id}
+                    className="transition-colors hover:bg-slate-50/60"
                   >
                     <td className="px-5 py-4">
-                      <button
-                        onClick={() => setSelected(item)}
-                        className="text-left font-bold text-blue-700 hover:underline dark:text-blue-300"
-                      >
-                        {item.name}
-                      </button>
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        {item.email}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-xs font-bold text-blue-700">
+                          {(candidate.name || "CA")
+                            .split(" ")
+                            .slice(0, 2)
+                            .map((part) => part[0])
+                            .join("")
+                            .toUpperCase() || "CA"}
+                        </div>
+                        <div>
+                          <button
+                            onClick={() => setSelected(candidate)}
+                            className="text-left text-xs font-bold text-slate-800 hover:text-blue-700 sm:text-sm"
+                          >
+                            {candidate.name}
+                          </button>
+                          <p className="text-[11px] text-slate-400">
+                            {candidate.email || candidate.phone || "No contact provided"}
+                          </p>
+                        </div>
+                      </div>
                     </td>
-                    <td className="font-bold text-slate-900 dark:text-slate-100">
-                      {item.jobTitle}
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => setSelected(item)}
-                        className="flex items-center gap-2"
-                      >
-                        <ScoreRing score={item.matchScore} size={42} />
-                        <span className="font-black text-slate-900 dark:text-white">
-                          {item.matchScore}%
-                        </span>
-                      </button>
-                    </td>
-                    <td>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${statusClass === "hired" || statusClass === "completed" ? "border border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200" : statusClass === "shortlisted" || statusClass === "interview-scheduled" || statusClass === "active" ? "border border-blue-300 bg-blue-100 text-blue-950 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200" : "border border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"}`}
-                      >
-                        {item.status.replaceAll("-", " ")}
+
+                    <td className="px-4 py-4">
+                      <span className="inline-block rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        {candidate.jobTitle || "General Application"}
                       </span>
                     </td>
-                    <td className="px-5">
-                      <div className="flex gap-2">
+
+                    <td className="px-4 py-4 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${candidate.matchScore >= 85 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : candidate.matchScore >= 70 ? "border-blue-200 bg-blue-50 text-blue-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}
+                      >
+                        <span>✦</span>
+                        <span>{candidate.matchScore || 85}%</span>
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-4 font-medium text-slate-500">
+                      {candidate.appliedDate ||
+                        candidate.applied_at ||
+                        candidate.created_at ||
+                        candidate.createdAt ||
+                        "Today"}
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <span
+                        className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-bold ${getStatusClass(candidate.status)}`}
+                      >
+                        {getStatusLabel(candidate.status)}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() =>
-                            updateApplication(item.id, "shortlisted")
-                          }
-                          className="rounded-lg border border-emerald-300 bg-emerald-100 p-2 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200"
-                          title="Shortlist"
+                          onClick={() => setSelected(candidate)}
+                          className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                          title="View Full Profile / CV"
                         >
-                          <Check className="h-4 w-4" />
+                          👁️
                         </button>
                         <button
                           onClick={() => {
-                            setSelected(item);
-                            setShowSchedule(true);
+                            setSelected(candidate);
+                            notify(`Opened chat for ${candidate.name}`);
                           }}
-                          className="rounded-lg border border-violet-300 bg-violet-100 p-2 text-violet-800 dark:border-violet-700 dark:bg-violet-950 dark:text-violet-200"
-                          title="Schedule"
+                          className="rounded-lg bg-blue-50 p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
+                          title="Send Message"
                         >
-                          <CalendarDays className="h-4 w-4" />
+                          💬
+                        </button>
+                        <button
+                          onClick={() => updateApplication(candidate.id, "rejected")}
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                          title="Decline / Reject"
+                        >
+                          ✕
                         </button>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-              {!items.length && (
+                ))
+              ) : (
                 <tr>
-                  <td
-                    colSpan="5"
-                    className="px-5 py-12 text-center text-slate-950 dark:text-white font-extrabold"
-                  >
-                    No candidate matches the current filters.
+                  <td colSpan="6" className="px-5 py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center">
+                      <p className="text-sm font-semibold text-slate-600">
+                        No applicants found for this filter
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Select another job or post a new vacancy to receive applications.
+                      </p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -804,27 +1093,23 @@ export default function EmployerWorkspace() {
         </div>
       </div>
     );
+  };
 
   return (
     <>
       <div className={`min-h-screen max-w-full overflow-x-hidden ${shell}`}>
-        <select
-          value={language}
-          onChange={changeLanguage}
-          className="fixed right-4 top-28 z-30 rounded-xl border-2 border-blue-200 bg-blue-600 px-3 py-2 text-xs font-black text-white shadow-lg outline-none hover:bg-blue-700 sm:top-32"
-          aria-label="Change language"
-        >
-          {languageOptions.map(([value, label]) => (
-            <option
-              key={value}
-              value={value}
-              className="bg-white font-semibold text-slate-900"
-            >
-              {label}
-            </option>
-          ))}
-        </select>
-        <div className="flex min-h-[calc(100vh-5rem)] min-w-0 sm:min-h-[calc(100vh-6rem)]">
+        <EmployerHeader
+          currentTabTitle={title}
+          breadcrumb={active === "overview" ? "Home / Dashboard" : `Home / ${title}`}
+          user={user}
+          unreadNotificationsCount={0}
+          onToggleSidebar={() => setSidebarOpen((current) => !current)}
+          onSearchClick={() => notify("Global search is ready for implementation.")}
+          onOpenNotifications={() => setActive("notifications")}
+          onOpenMessages={() => setActive("messages")}
+          onLogout={handleHeaderLogout}
+        />
+        <div className="flex min-w-0">
           {sidebarOpen && (
             <button
               type="button"
@@ -842,117 +1127,297 @@ export default function EmployerWorkspace() {
             onClose={() => setSidebarOpen(false)}
             stages={stages}
           />
-          <main className="min-w-0 max-w-full flex-1 overflow-y-auto overflow-x-hidden bg-slate-50/50 p-3 sm:p-6 lg:p-8">
+          <main className="min-w-0 max-w-full flex-1 overflow-x-hidden bg-slate-50/50 p-3 sm:p-6 lg:p-8">
             <div className="mx-auto max-w-7xl">
-              <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-blue-600">
-                    Stage {stages.findIndex(([id]) => id === active) + 1} of 9
-                  </p>
-                  <h2 className="mt-1 text-3xl font-black tracking-tight">
-                    {title}
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Operate your hiring pipeline from one intelligent workspace.
-                  </p>
-                </div>
-                {active !== "post" && (
+              {active === "overview" ? (
+                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+                      Welcome, {companyName || employeeName || "Employer"}
+                    </h1>
+                    <p className="mt-1 max-w-2xl text-xs font-medium text-slate-500 sm:text-sm">
+                      Review AI-matched candidates, track recruitment progress, and connect with top talent seamlessly.
+                    </p>
+                  </div>
+
                   <button
                     onClick={() => selectStage("post")}
-                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20"
+                    className="inline-flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-500/20 transition-all hover:bg-blue-700 hover:shadow-lg active:scale-[0.98]"
                   >
-                    <Plus className="h-4 w-4" /> Post New Job
+                    <span className="text-base font-bold">+</span>
+                    <span>Post New Job</span>
                   </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+                  <div className="flex-1" />
+                  {active !== "post" && (
+                    <button
+                      onClick={() => selectStage("post")}
+                      className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20"
+                    >
+                      <Plus className="h-4 w-4" /> Post New Job
+                    </button>
+                  )}
+                </div>
+              )}
 
               {active === "overview" && (
                 <>
-                  <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-                    {[
-                      [
-                        "Active Jobs",
-                        stats.active,
-                        BriefcaseBusiness,
-                        "bg-blue-50 text-blue-600",
-                        stats.active ? "Accepting applications" : "No active listings",
-                      ],
-                      [
-                        "Total Applicants",
-                        stats.applicants,
-                        Users,
-                        "bg-emerald-50 text-emerald-600",
-                        "Across all open listings",
-                      ],
-                      [
-                        "High AI Matches (>80%)",
-                        stats.high,
-                        Sparkles,
-                        "bg-purple-50 text-purple-600",
-                        "Top qualified talent ready for review",
-                      ],
-                      [
-                        "Shortlisted",
-                        stats.shortlisted,
-                        Star,
-                        "bg-amber-50 text-amber-600",
-                        "Moved to decision pipeline",
-                      ],
-                      [
-                        "Interviews Scheduled",
-                        stats.interviews,
-                        CalendarDays,
-                        "bg-rose-50 text-rose-600",
-                        nextInterviewLabel,
-                      ],
-                      [
-                        "Successfully Hired",
-                        stats.hired,
-                        UserCheck,
-                        "bg-teal-50 text-teal-600",
-                        "Accepted candidates in onboarding",
-                      ],
-                    ].map(([label, value, Icon, color, statusLabel]) => (
-                      <div
-                        className={`flex min-h-[145px] flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-200 hover:border-slate-300 hover:shadow-md sm:min-h-[160px] ${card}`}
-                        key={label}
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-[11px] font-extrabold uppercase italic tracking-wider text-slate-500">
-                            {label}
-                          </p>
-                          <span className={`rounded-xl p-3 ${color}`}>
-                            <Icon className="h-5 w-5" />
-                          </span>
+                  <div className="mb-8 rounded-3xl border border-blue-200/80 bg-gradient-to-r from-blue-50/80 via-indigo-50/60 to-white p-5 shadow-xs">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+                        <span className="flex h-2.5 w-2.5 rounded-full bg-blue-600 animate-pulse" />
+                        <span>Action Required &amp; Today&apos;s Priorities</span>
+                      </h3>
+                      <span className="rounded-full bg-blue-100/80 px-2.5 py-0.5 text-xs font-bold text-blue-600">
+                        {Math.max(1, Math.min(3, unreviewedCount > 0 ? 3 : 1))} pending tasks
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white p-3 shadow-xs">
+                        <div className="text-xs">
+                          <p className="font-bold text-slate-800">{unreviewedCount} New Unreviewed Resumes</p>
+                          <p className="text-[11px] text-slate-400">{activeJobs[0]?.title || "Open role"} listing</p>
                         </div>
-                        <p className="mt-2 mb-1 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                          {value} <span className="text-sm font-extrabold italic text-slate-500 sm:text-base">{label === "Active Jobs" ? "Active" : label === "Total Applicants" ? "Total" : label.includes("Interviews") ? "Upcoming" : label.includes("Hired") ? "Hired" : "Candidates"}</span>
-                        </p>
-                        <p className="flex items-center gap-1.5 text-[11px] font-bold italic text-emerald-600">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          {statusLabel}
-                        </p>
+                        <button onClick={() => navigate("/employer/applications")} className="rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700">
+                          Review
+                        </button>
                       </div>
-                    ))}
+
+                      <div className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white p-3 shadow-xs">
+                        <div className="text-xs">
+                          <p className="font-bold text-slate-800">Interview with Yabsira Today</p>
+                          <p className="text-[11px] text-slate-400">Scheduled for 2:30 PM</p>
+                        </div>
+                        <button onClick={() => navigate("/employer/messages")} className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200">
+                          Details
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white p-3 shadow-xs">
+                        <div className="text-xs">
+                          <p className="font-bold text-slate-800">{expiringJob ? "1 Job Expiring in 3 Days" : "No Jobs Expiring Soon"}</p>
+                          <p className="text-[11px] text-slate-400">
+                            {expiringJob ? `${expiringJob.title} role` : "All active listings are healthy"}
+                          </p>
+                        </div>
+                        <button onClick={() => navigate("/employer/jobs")} className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200">
+                          {expiringJob ? "Extend" : "View"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className={`rounded-2xl border p-5 shadow-sm ${card}`}>
+
+                  <div className="mb-8 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs">
                     <div className="mb-5 flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-black text-slate-950 dark:text-white">
-                          Recent Applications
-                        </h3>
-                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                          The strongest candidates across your open roles.
-                        </p>
+                        <h3 className="text-base font-extrabold text-slate-900">Your Active Job Postings</h3>
+                        <p className="text-xs text-slate-400">Manage live listings, monitor applicants, and share public links.</p>
                       </div>
-                      <button
-                        onClick={() => setActive("applications")}
-                        className="text-sm font-extrabold text-blue-700 hover:text-blue-900"
-                      >
-                        View all <ArrowRight className="inline h-4 w-4" />
+                      <button onClick={() => selectStage("post")} className="text-xs font-bold text-blue-600 hover:text-blue-700">
+                        + Add New Role
                       </button>
                     </div>
-                    {renderApplications(applications.slice(0, 4))}
+
+                    {activeJobs.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {activeJobs.slice(0, 4).map((job) => (
+                          <div key={job.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50/50 p-4 transition-all hover:border-blue-300 hover:bg-white">
+                            <div>
+                              <div className="mb-1 flex items-center justify-between gap-2">
+                                <h4 className="text-sm font-bold text-slate-800">{job.title}</h4>
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  Active
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                {job.department || "General"} • {job.location || "Addis Ababa"}
+                              </p>
+                              <p className="mt-2 text-xs font-semibold text-blue-600">
+                                {job.applicantsCount || 0} applicants received
+                              </p>
+                            </div>
+
+                            <div className="mt-4 flex items-center gap-2 border-t border-slate-200/60 pt-3 text-xs">
+                              <button onClick={() => navigate(`/employer/jobs/${job.id}`)} className="flex-1 rounded-xl bg-blue-50 py-1.5 font-bold text-blue-700 hover:bg-blue-100">
+                                View Applicants
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const shareUrl = `${window.location.origin}/jobs/${job.id}`;
+                                  navigator.clipboard?.writeText(shareUrl);
+                                  notify("Job link copied to clipboard.");
+                                }}
+                                className="rounded-xl border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-100"
+                                title="Copy Job Link"
+                              >
+                                Share 🔗
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                        <p className="text-xs font-medium text-slate-500">You haven&apos;t posted any jobs yet.</p>
+                        <button onClick={() => selectStage("post")} className="mt-3 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700">
+                          Create Your First Job Listing
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mb-8 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-xs">
+                    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-base font-extrabold text-slate-900">
+                          Hiring Pipeline Overview
+                        </h3>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          Candidate movement across screening, AI ranking, and hiring milestones.
+                        </p>
+                      </div>
+
+                      <select
+                        defaultValue="this_month"
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 transition-colors focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="this_month">This Month ⌄</option>
+                        <option value="last_30">Last 30 Days</option>
+                        <option value="this_year">This Year</option>
+                      </select>
+                    </div>
+
+                    <div className="relative h-56 w-full pt-2">
+                      <svg className="h-full w-full overflow-visible" viewBox="0 0 800 180" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="pipelineGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.2" />
+                            <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+
+                        <line x1="0" y1="40" x2="800" y2="40" stroke="#f1f5f9" strokeDasharray="4 4" />
+                        <line x1="0" y1="90" x2="800" y2="90" stroke="#f1f5f9" strokeDasharray="4 4" />
+                        <line x1="0" y1="140" x2="800" y2="140" stroke="#f1f5f9" strokeDasharray="4 4" />
+
+                        {(() => {
+                          const chartValues = pipelineStages.map((stage) => Number(stage.value) || 0);
+                          const maxValue = Math.max(...chartValues, 1);
+                          const points = pipelineStages.map((stage, index) => {
+                            const x = 40 + index * 190;
+                            const y = 160 - (Number(stage.value || 0) / maxValue) * 110;
+                            return { x, y, label: stage.label, value: stage.value };
+                          });
+
+                          const linePath = points
+                            .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+                            .join(' ');
+                          const areaPath = `${linePath} L ${points[points.length - 1].x} 180 L ${points[0].x} 180 Z`;
+
+                          return (
+                            <>
+                              <path d={areaPath} fill="url(#pipelineGrad)" />
+                              <path
+                                d={linePath}
+                                fill="none"
+                                stroke="#2563eb"
+                                strokeWidth="3.5"
+                                strokeLinecap="round"
+                              />
+                              {points.map((point, index) => (
+                                <g key={`${point.label}-${index}`}>
+                                  <circle cx={point.x} cy={point.y} r={index === points.length - 1 ? 6 : 5} fill="#2563eb" stroke="#fff" strokeWidth={index === points.length - 1 ? 2 : 0} />
+                                </g>
+                              ))}
+                            </>
+                          );
+                        })()}
+                      </svg>
+
+                      <div className="mt-3 flex justify-between border-t border-slate-100 pt-3 text-[11px] font-semibold text-slate-400">
+                        {pipelineStages.map((stage) => (
+                          <span key={stage.label}>{stage.label}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {renderApplications(applications.slice(0, 4))}
+
+                  <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {[
+                      {
+                        label: "ACTIVE JOBS",
+                        value: stats.active,
+                        subtext: stats.active > 0 ? `${stats.active} roles currently open` : "No active listings",
+                        icon: BriefcaseBusiness,
+                        color: "text-blue-600",
+                        bg: "bg-blue-50",
+                      },
+                      {
+                        label: "TOTAL APPLICANTS",
+                        value: stats.applicants,
+                        subtext: "Across all active openings",
+                        icon: Users,
+                        color: "text-indigo-600",
+                        bg: "bg-indigo-50",
+                      },
+                      {
+                        label: "HIGH AI MATCHES (≥80%)",
+                        value: stats.high,
+                        subtext: "Top qualified talent ready for review",
+                        icon: Sparkles,
+                        color: "text-purple-600",
+                        bg: "bg-purple-50",
+                      },
+                      {
+                        label: "SHORTLISTED",
+                        value: stats.shortlisted,
+                        subtext: "Moved to decision pipeline",
+                        icon: Star,
+                        color: "text-amber-500",
+                        bg: "bg-amber-50",
+                      },
+                      {
+                        label: "INTERVIEWS SCHEDULED",
+                        value: stats.interviews,
+                        subtext: nextInterviewLabel,
+                        icon: CalendarDays,
+                        color: "text-rose-500",
+                        bg: "bg-rose-50",
+                      },
+                      {
+                        label: "SUCCESSFULLY HIRED",
+                        value: stats.hired,
+                        subtext: "Accepted offers & onboarded",
+                        icon: UserCheck,
+                        color: "text-emerald-600",
+                        bg: "bg-emerald-50",
+                      },
+                    ].map((stat) => (
+                      <div
+                        key={stat.label}
+                        className="flex min-h-[160px] flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all duration-200 hover:shadow-md"
+                      >
+                        <div className="mb-4 flex items-center">
+                          <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                            {stat.label}
+                          </span>
+                        </div>
+
+                        <div>
+                          <div className="mb-1 text-3xl font-extrabold tracking-tight text-slate-900">
+                            {stat.value}
+                          </div>
+                          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                            <span className={`h-1.5 w-1.5 rounded-full ${stat.value > 0 ? "bg-emerald-500" : "bg-slate-300"}`} />
+                            {stat.subtext}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </>
               )}
@@ -960,9 +1425,10 @@ export default function EmployerWorkspace() {
               {active === "profile" && (
                 <CompanyLegal
                   company={company}
-                  onSaveSuccess={(payload) =>
-                    setCompany((current) => ({ ...current, ...payload }))
-                  }
+                  onSaveSuccess={(payload) => {
+                    setCompany((current) => ({ ...current, ...payload }));
+                    setActive("overview");
+                  }}
                 />
               )}
               {active === "post" && (
@@ -994,17 +1460,36 @@ export default function EmployerWorkspace() {
                             onChange={(e) =>
                               setJob({ ...job, title: e.target.value })
                             }
-                            placeholder="Senior React Developer"
                           />
                         </Field>
-                        <Field label="Department">
-                          <input
+                        <Field label="Sector">
+                          <select
                             className={inputClass(dark)}
                             value={job.department}
                             onChange={(e) =>
                               setJob({ ...job, department: e.target.value })
                             }
-                          />
+                          >
+                            {jobSectors.map((sector) => (
+                              <option key={sector} value={sector}>
+                                {sector}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Job Vacancy Level">
+                          <select
+                            className={inputClass(dark)}
+                            value={job.experience_level}
+                            onChange={(e) =>
+                              setJob({ ...job, experience_level: e.target.value })
+                            }
+                          >
+                            <option value="entry-level">Entry-level</option>
+                            <option value="mid-level">Mid-level</option>
+                            <option value="senior-level">Senior-level</option>
+                            <option value="executive">Executive</option>
+                          </select>
                         </Field>
                         <Field label="Job Type">
                           <select
@@ -1017,10 +1502,14 @@ export default function EmployerWorkspace() {
                             <option value="full-time">Full-time</option>
                             <option value="part-time">Part-time</option>
                             <option value="contract">Contract</option>
+                            <option value="freelance">Freelance</option>
+                            <option value="temporary">Temporary</option>
                             <option value="internship">Internship</option>
+                            <option value="self-employed">Self-employed</option>
+                            <option value="volunteer">Volunteer</option>
                           </select>
                         </Field>
-                        <Field label="Work Model">
+                        <Field label="Work Mode">
                           <select
                             className={inputClass(dark)}
                             value={job.work_mode}
@@ -1028,9 +1517,9 @@ export default function EmployerWorkspace() {
                               setJob({ ...job, work_mode: e.target.value })
                             }
                           >
+                            <option value="on-site">On-site</option>
                             <option value="remote">Remote</option>
                             <option value="hybrid">Hybrid</option>
-                            <option value="on-site">On-site</option>
                           </select>
                         </Field>
                         <Field label="Location">
@@ -1042,7 +1531,20 @@ export default function EmployerWorkspace() {
                             }
                           />
                         </Field>
-                        <Field label="Currency">
+                        <Field label="Gender Preference">
+                          <select
+                            className={inputClass(dark)}
+                            value={job.gender_preference || "any"}
+                            onChange={(e) =>
+                              setJob({ ...job, gender_preference: e.target.value })
+                            }
+                          >
+                            <option value="any">Any</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                          </select>
+                        </Field>
+                        <Field label="Compensation">
                           <select
                             className={inputClass(dark)}
                             value={job.currency}
@@ -1131,8 +1633,7 @@ export default function EmployerWorkspace() {
                           {job.title || "Your new job title"}
                         </h3>
                         <p className="mt-2 text-sm text-slate-500">
-                          {companyName} Ã‚Â· {job.location || "Location"} Ã‚Â·{" "}
-                          {job.work_mode}
+                          {companyName} • {job.location || "Location"} • {job.work_mode}
                         </p>
                         <div className="mt-6 whitespace-pre-line text-sm leading-7 text-slate-600">
                           {job.description ||
@@ -1141,34 +1642,75 @@ export default function EmployerWorkspace() {
                       </div>
                     )}
                     {wizard === 3 && (
-                      <div className="rounded-2xl bg-blue-50 p-8 text-center">
-                        <CheckCircle2 className="mx-auto h-12 w-12 text-blue-600" />
-                        <h3 className="mt-4 text-2xl font-black">
+                      <div className="rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-8 shadow-sm">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                          <CheckCircle2 className="h-7 w-7" />
+                        </div>
+                        <h3 className="mt-4 text-2xl font-black text-slate-900">
                           Ready to publish?
                         </h3>
-                        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-                          Save this role as a draft, schedule it later, or
-                          publish it now for candidates to discover.
+                        <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">
+                          Choose whether this role should be saved as a draft, scheduled for a future launch, or published immediately.
                         </p>
+
+                        <div className="mt-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xs md:grid-cols-[1fr_auto] md:items-center">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                              Schedule publication
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-slate-700">
+                              Select a date and time for a future post.
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row md:flex-col xl:flex-row">
+                            <input
+                              type="date"
+                              value={scheduleDraft.date}
+                              onChange={(event) =>
+                                setScheduleDraft((current) => ({
+                                  ...current,
+                                  date: event.target.value,
+                                }))
+                              }
+                              className={inputClass(dark)}
+                            />
+                            <input
+                              type="time"
+                              value={scheduleDraft.time}
+                              onChange={(event) =>
+                                setScheduleDraft((current) => ({
+                                  ...current,
+                                  time: event.target.value,
+                                }))
+                              }
+                              className={inputClass(dark)}
+                            />
+                          </div>
+                        </div>
+
                         <div className="mt-6 flex flex-wrap justify-center gap-3">
                           <button
                             onClick={() => saveJob("draft")}
-                            className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-700"
+                            className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:border-slate-400"
                           >
                             Save as Draft
                           </button>
                           <button
                             onClick={() => {
-                              saveJob("draft");
-                              notify("Job scheduled for publishing");
+                              if (!scheduleDraft.date && !scheduleDraft.time) {
+                                notify("Please select a schedule date and time to publish later.", "error");
+                                return;
+                              }
+                              const scheduledDate = `${scheduleDraft.date}T${scheduleDraft.time || "00:00"}`;
+                              saveJob("scheduled", scheduledDate);
                             }}
-                            className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white"
+                            className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-amber-500/20 transition-all hover:bg-amber-600"
                           >
                             Schedule Post
                           </button>
                           <button
                             onClick={() => saveJob("published")}
-                            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white"
+                            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700"
                           >
                             Publish Job Now
                           </button>
@@ -1235,149 +1777,467 @@ export default function EmployerWorkspace() {
 
               {active === "jobs" && (
                 <div className="space-y-6">
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+                        My Job Listings
+                      </h1>
+                      <p className="mt-1 max-w-2xl text-xs font-medium text-slate-500 sm:text-sm">
+                        Track and manage your published vacancies, monitor real-time applicant pipelines, and control hiring statuses.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-10 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                     {[
                       {
                         label: "Total jobs",
                         value: jobs.length,
-                        tone: "text-blue-600",
+                        tone: "text-slate-900",
+                        note: jobs.length > 0 ? `${jobs.length} roles published` : "No active listings",
                       },
                       {
-                        label: "Live openings",
+                        label: "Live / Open",
                         value: jobs.filter(
-                          (item) =>
-                            (item.status || "").toLowerCase() === "published",
+                          (item) => normalizeJobStatus(item.status) === "active",
                         ).length,
                         tone: "text-emerald-600",
+                        note: "Accepting new applicants",
                       },
                       {
-                        label: "AI matches",
-                        value: applications.filter(
-                          (item) => Number(item.matchScore || 0) >= 80,
+                        label: "Paused",
+                        value: jobs.filter(
+                          (item) => normalizeJobStatus(item.status) === "paused",
                         ).length,
-                        tone: "text-violet-600",
+                        tone: "text-amber-500",
+                        note: "Temporarily on hold",
+                      },
+                      {
+                        label: "Closed / Expired",
+                        value: jobs.filter(
+                          (item) =>
+                            ["closed", "expired", "archived"].includes(
+                              normalizeJobStatus(item.status),
+                            ),
+                        ).length,
+                        tone: "text-slate-600",
+                        note: "Hiring completed",
                       },
                     ].map((stat) => (
                       <div
                         key={stat.label}
-                        className={`rounded-2xl border p-5 shadow-sm ${card}`}
+                        className="rounded-3xl border border-slate-200/90 bg-white p-7 shadow-xs transition-all hover:shadow-md"
                       >
-                        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+                        <p className="block text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
                           {stat.label}
                         </p>
-                        <p className={`mt-3 text-3xl font-black ${stat.tone}`}>
+                        <p className={`mt-2 text-4xl font-black tracking-tight ${stat.tone}`}>
                           {stat.value}
+                        </p>
+                        <p className="mt-2 text-xs font-semibold text-slate-500">
+                          {stat.note}
                         </p>
                       </div>
                     ))}
                   </div>
-                  {jobs.length ? (
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      {jobs.map((item) => (
-                        <div
-                          className={`rounded-2xl border p-5 shadow-sm ${card}`}
-                          key={item.id}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  navigate(
-                                    `/employer/jobs/${item.id}/applicants`,
-                                  )
-                                }
-                                className="text-left"
-                              >
-                                <h3 className="text-lg font-black hover:text-blue-700">
-                                  {item.title}
-                                </h3>
-                                <p className="mt-1 text-sm text-slate-500">
-                                  {item.department ||
-                                    item.category ||
-                                    "General"}{" "}
-                                  · {item.location || "Remote"}
-                                </p>
-                              </button>
-                            </div>
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${item.status === "published" ? "bg-emerald-50 text-emerald-700" : item.status === "paused" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}
-                            >
-                              {item.status || "draft"}
-                            </span>
-                          </div>
-                          <div className="mt-5 grid gap-3 border-y border-slate-100 py-4 text-sm text-slate-600">
-                            <div className="flex items-center justify-between">
-                              <span>Applicants</span>
-                              <b className="font-black text-slate-900">
-                                {item.applicantsCount || 0}
-                              </b>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>Shortlisted</span>
-                              <b className="font-black text-slate-900">
-                                {item.shortlisted || 0}
-                              </b>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span>AI fit</span>
-                              <b className="font-black text-slate-900">
-                                {item.avgMatch ?? "—"}
-                              </b>
-                            </div>
-                          </div>
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            <button
-                              onClick={() => editJob(item)}
-                              className="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() =>
-                                navigate(`/employer/jobs/${item.id}/applicants`)
-                              }
-                              className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700"
-                            >
-                              View Applicants
-                            </button>
-                            <button
-                              onClick={() => toggleJob(item)}
-                              className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold"
-                            >
-                              {item.status === "published"
-                                ? "Pause"
-                                : "Activate"}
-                            </button>
-                            <button
-                              onClick={() => deleteJob(item.id)}
-                              className="rounded-xl bg-red-50 p-2 text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
+
+                  <div className="space-y-6">
+                    <div className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs md:flex-row md:items-center">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+                          My Jobs Overview
+                        </p>
+                        <h3 className="mt-1 text-xl font-black text-slate-900">
+                          Job management workspace
+                        </h3>
+                      </div>
+
+                      <div className="relative w-full max-w-xs">
+                        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={jobSearchQuery}
+                          onChange={(event) => setJobSearchQuery(event.target.value)}
+                          placeholder="Search listings by title or sector..."
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-xs text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="overflow-hidden rounded-3xl border border-[var(--brand-border)] bg-white shadow-xs">
+                      <div className="flex flex-col justify-between gap-4 border-b border-[var(--brand-border)] bg-[var(--brand-soft)] p-5 md:flex-row md:items-center">
+                        <div>
+                          <h4 className="text-lg font-black text-slate-900">
+                            Published & Active Jobs
+                          </h4>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Live on Explore Jobs, managing applicants and hiring pipeline.
+                          </p>
                         </div>
-                      ))}
+                        <span className="inline-flex items-center rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] px-3 py-1 text-xs font-bold text-[var(--brand-deep)]">
+                          {publishedJobs.filter((item) => {
+                            const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                            return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                          }).length} live vacancies
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                            <tr>
+                              <th className="px-6 py-4 text-slate-700">Job Role & Sector</th>
+                              <th className="px-4 py-4 text-slate-700">Dates</th>
+                              <th className="px-4 py-4 text-center text-slate-700">Applicant Pipeline</th>
+                              <th className="px-4 py-4 text-slate-700">Status</th>
+                              <th className="px-6 py-4 text-right text-slate-700">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {publishedJobs.filter((item) => {
+                              const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                              return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                            }).length ? (
+                              publishedJobs
+                                .filter((item) => {
+                                  const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                                  return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                                })
+                                .map((item) => {
+                                  const postedDate = item.created_at
+                                    ? new Date(item.created_at).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })
+                                    : "Recently";
+                                  const deadlineValue = item.application_deadline || item.deadline || item.applicationDeadline || "No deadline";
+                                  const deadlineDate =
+                                    deadlineValue === "No deadline"
+                                      ? "Ongoing"
+                                      : new Date(deadlineValue).toLocaleDateString("en-US", {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        });
+                                  const normalizedStatus = normalizeJobStatus(item.status);
+                                  const totalApplicants = Number(item.total_applicants ?? item.applicantsCount ?? 0);
+                                  const pendingCount = Number(item.pending_count ?? item.pendingCount ?? 0);
+                                  const shortlistedCount = Number(item.shortlisted_count ?? item.shortlisted ?? 0);
+                                  const hiredCount = Number(item.hired_count ?? item.hiredCount ?? 0);
+
+                                  return (
+                                    <tr key={item.id} className="transition-colors hover:bg-slate-50/70">
+                                      <td className="px-6 py-4">
+                                        <div>
+                                          <button
+                                            type="button"
+                                            onClick={() => navigate(`/employer/jobs/${item.id}/applicants`)}
+                                            className="text-left text-sm font-extrabold text-slate-900 hover:text-blue-700"
+                                          >
+                                            {item.title}
+                                          </button>
+                                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                              {item.sector || item.category || "General"}
+                                            </span>
+                                            <span className="text-[11px] text-slate-400">
+                                              • {item.work_mode || "Hybrid"} • {item.location || "Addis Ababa"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-4 text-slate-600">
+                                        <div>
+                                          <p className="text-[11px] font-semibold text-slate-800">
+                                            <span className="text-slate-400">Posted:</span> {postedDate}
+                                          </p>
+                                          <p className="mt-0.5 text-[11px] text-slate-500">
+                                            <span className="text-slate-400">Deadline:</span> {deadlineDate}
+                                          </p>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-4 text-center">
+                                        <div className="inline-flex flex-wrap justify-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+                                          <span className="rounded-xl bg-blue-100 px-2.5 py-1 text-[10px] font-bold text-blue-700" title="Total Applicants">
+                                            {totalApplicants} Total
+                                          </span>
+                                          <span className="rounded-xl bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700" title="Pending / New Applicants">
+                                            {pendingCount} New
+                                          </span>
+                                          <span className="rounded-xl bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-700" title="Shortlisted Applicants">
+                                            {shortlistedCount} Shortlisted
+                                          </span>
+                                          <span className="rounded-xl bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700" title="Hired Applicants">
+                                            {hiredCount} Hired
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold capitalize ${getJobStatusClasses(normalizedStatus)}`}>
+                                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                          Active
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                          <button onClick={() => editJob(item)} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
+                                            Edit
+                                          </button>
+                                          <button onClick={() => navigate(`/employer/jobs/${item.id}/applicants`)} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
+                                            Applicants
+                                          </button>
+                                          <button onClick={() => toggleJob(item)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">
+                                            Pause
+                                          </button>
+                                          <button onClick={() => deleteJob(item.id)} className="rounded-xl bg-red-50 p-2 text-red-600">
+                                            <Trash2 className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                            ) : (
+                              <tr>
+                                <td colSpan="5" className="px-6 py-16 text-center">
+                                  <div className="flex flex-col items-center justify-center">
+                                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] text-lg text-[var(--brand-deep)]">
+                                      
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-700">No published jobs yet</p>
+                                    <p className="mt-1 max-w-sm text-xs text-slate-400">
+                                      Publish a vacancy to make it visible on Explore Jobs and start collecting candidates.
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  ) : (
-                    <div
-                      className={`rounded-2xl border border-dashed p-10 text-center ${card}`}
-                    >
-                      <h3 className="text-xl font-black text-slate-900">
-                        No jobs yet
-                      </h3>
-                      <p className="mt-2 text-sm text-slate-500">
-                        Create your first role to start receiving applicant
-                        matches.
-                      </p>
-                      <button
-                        onClick={() => selectStage("post")}
-                        className="mt-5 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white"
-                      >
-                        Post a job
-                      </button>
+
+                    <div className="overflow-hidden rounded-3xl border border-[var(--brand-border)] bg-white shadow-xs">
+                      <div className="flex flex-col justify-between gap-4 border-b border-[var(--brand-border)] bg-[var(--brand-soft)] p-5 md:flex-row md:items-center">
+                        <div>
+                          <h4 className="text-lg font-black text-slate-900">
+                            Scheduled Job Posts
+                          </h4>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Queued future vacancies with scheduled release dates.
+                          </p>
+                        </div>
+                        <span className="inline-flex items-center rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] px-3 py-1 text-xs font-bold text-[var(--brand-deep)]">
+                          {scheduledJobs.filter((item) => {
+                            const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                            return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                          }).length} queued posts
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                            <tr>
+                              <th className="px-6 py-4 text-slate-700">Vacancy</th>
+                              <th className="px-4 py-4 text-slate-700">Release Schedule</th>
+                              <th className="px-4 py-4 text-center text-slate-700">Applications</th>
+                              <th className="px-4 py-4 text-slate-700">Status</th>
+                              <th className="px-6 py-4 text-right text-slate-700">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {scheduledJobs.filter((item) => {
+                              const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                              return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                            }).length ? (
+                              scheduledJobs
+                                .filter((item) => {
+                                  const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                                  return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                                })
+                                .map((item) => {
+                                  const scheduledOn = item.scheduled_date || item.scheduledDate || item.application_deadline || item.deadline || "Not set";
+                                  const releaseDate = scheduledOn === "Not set" ? "Not set" : new Date(scheduledOn).toLocaleString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  });
+                                  const totalApplicants = Number(item.total_applicants ?? item.applicantsCount ?? 0);
+                                  return (
+                                    <tr key={item.id} className="transition-colors hover:bg-slate-50/70">
+                                      <td className="px-6 py-4">
+                                        <div>
+                                          <p className="text-sm font-extrabold text-slate-900">{item.title}</p>
+                                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                              {item.sector || item.category || "General"}
+                                            </span>
+                                            <span className="text-[11px] text-slate-400">
+                                              {item.work_mode || "Hybrid"} • {item.location || "Addis Ababa"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-4 text-slate-600">
+                                        <p className="text-[11px] font-semibold text-slate-800">{releaseDate}</p>
+                                      </td>
+                                      <td className="px-4 py-4 text-center">
+                                        <span className="rounded-xl bg-blue-100 px-2.5 py-1 text-[10px] font-bold text-blue-700">
+                                          {totalApplicants} applicants
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-4">
+                                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] px-3 py-1 text-xs font-bold text-[var(--brand-deep)]">
+                                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                          Scheduled
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                          <button onClick={() => editJob(item)} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
+                                            Edit
+                                          </button>
+                                          <button onClick={() => toggleJob(item)} className="rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-700">
+                                            Publish Now
+                                          </button>
+                                          <button onClick={() => deleteJob(item.id)} className="rounded-xl bg-red-50 p-2 text-red-600">
+                                            <Trash2 className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                            ) : (
+                              <tr>
+                                <td colSpan="5" className="px-6 py-16 text-center">
+                                  <div className="flex flex-col items-center justify-center">
+                                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] text-lg text-[var(--brand-deep)]">
+                                      
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-700">No scheduled posts</p>
+                                    <p className="mt-1 max-w-sm text-xs text-slate-400">
+                                      Schedule a vacancy for a future release date and it will appear here automatically.
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  )}
+
+                    <div className="overflow-hidden rounded-3xl border border-[var(--brand-border)] bg-white shadow-xs">
+                      <div className="flex flex-col justify-between gap-4 border-b border-[var(--brand-border)] bg-[var(--brand-soft)] p-5 md:flex-row md:items-center">
+                        <div>
+                          <h4 className="text-lg font-black text-slate-900">
+                            Saved Draft Vacancies
+                          </h4>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Unpublished drafts with instant one-click publish action.
+                          </p>
+                        </div>
+                        <span className="inline-flex items-center rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] px-3 py-1 text-xs font-bold text-[var(--brand-deep)]">
+                          {draftJobs.filter((item) => {
+                            const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                            return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                          }).length} drafts
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                            <tr>
+                              <th className="px-6 py-4 text-slate-700">Draft Role</th>
+                              <th className="px-4 py-4 text-slate-700">Last Updated</th>
+                              <th className="px-4 py-4 text-slate-700">Status</th>
+                              <th className="px-6 py-4 text-right text-slate-700">Quick Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {draftJobs.filter((item) => {
+                              const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                              return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                            }).length ? (
+                              draftJobs
+                                .filter((item) => {
+                                  const searchValue = `${item.title || ""} ${item.sector || item.category || ""} ${item.location || ""}`.toLowerCase();
+                                  return !jobSearchQuery || searchValue.includes(jobSearchQuery.toLowerCase());
+                                })
+                                .map((item) => {
+                                  const updatedDate = item.updated_at || item.created_at
+                                    ? new Date(item.updated_at || item.created_at).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })
+                                    : "Recently";
+                                  return (
+                                    <tr key={item.id} className="transition-colors hover:bg-slate-50/70">
+                                      <td className="px-6 py-4">
+                                        <div>
+                                          <p className="text-sm font-extrabold text-slate-900">{item.title}</p>
+                                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                              {item.sector || item.category || "General"}
+                                            </span>
+                                            <span className="text-[11px] text-slate-400">
+                                              {item.work_mode || "Hybrid"} • {item.location || "Addis Ababa"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-4 text-slate-600">
+                                        <span className="text-[11px] font-semibold text-slate-800">{updatedDate}</span>
+                                      </td>
+                                      <td className="px-4 py-4">
+                                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] px-3 py-1 text-xs font-bold text-[var(--brand-deep)]">
+                                          <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+                                          Draft
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                          <button onClick={() => editJob(item)} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">
+                                            Edit
+                                          </button>
+                                          <button onClick={() => toggleJob(item)} className="rounded-xl bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-700">
+                                            Publish Now
+                                          </button>
+                                          <button onClick={() => deleteJob(item.id)} className="rounded-xl bg-red-50 p-2 text-red-600">
+                                            <Trash2 className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                            ) : (
+                              <tr>
+                                <td colSpan="4" className="px-6 py-16 text-center">
+                                  <div className="flex flex-col items-center justify-center">
+                                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--brand-border)] bg-[var(--brand-soft)] text-lg text-[var(--brand-deep)]">
+                                      
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-700">No saved drafts</p>
+                                    <p className="mt-1 max-w-sm text-xs text-slate-400">
+                                      Save a vacancy as a draft to return and publish anytime.
+                                    </p>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1402,13 +2262,11 @@ export default function EmployerWorkspace() {
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
                     >
-                      <option value="all">All statuses</option>
-                      <option value="applied">Applied</option>
-                      <option value="under-review">Under Review</option>
-                      <option value="shortlisted">Shortlisted</option>
-                      <option value="interview-scheduled">Interview</option>
-                      <option value="hired">Hired</option>
-                      <option value="rejected">Rejected</option>
+                      {PIPELINE_STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                     <select
                       className={inputClass(dark)}
@@ -1700,7 +2558,7 @@ export default function EmployerWorkspace() {
             </div>
           </main>
         </div>
-        <Toast toast={toast} onClose={() => setToast("")} />
+        <Toast toast={toast} onClose={() => setToast(null)} />
         {selected && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4">
             <div
