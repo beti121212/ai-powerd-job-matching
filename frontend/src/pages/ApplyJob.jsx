@@ -3,8 +3,10 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, FileText, Loader2, Sparkles } from 'lucide-react';
 import ResumeSelector from '../components/jobs/ResumeSelector';
 import { useAuth } from '../context/AuthContext';
-import { applyForJob, getJobById } from '../services/jobService';
-import { getApplicationForJob } from '../utils/applicationFlow';
+import { getJobById } from '../services/jobService';
+import { clearPendingApplication, continueApplicationFlow, getApplicationForJob, getApplicationRequirements, getPendingApplication, recordApplication } from '../utils/applicationFlow';
+import { useToast } from '../hooks/useToast.js';
+import { scrollToFeedback } from '../utils/scrollHelper.js';
 
 function getStoredResumeList() {
   try {
@@ -21,6 +23,7 @@ export default function ApplyJob() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   const [job, setJob] = useState(null);
   const [resumes] = useState(getStoredResumeList);
@@ -32,15 +35,23 @@ export default function ApplyJob() {
   const [existingApplication, setExistingApplication] = useState(() => getApplicationForJob(id));
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: location.pathname, intent: 'apply', jobId: id } });
-      return;
-    }
-
-    const savedResume = localStorage.getItem('seekerResume');
-    if (!savedResume) {
-      navigate(`/resume?jobId=${encodeURIComponent(id)}`, { replace: true });
-      return;
+    const pending = getPendingApplication();
+    if (pending?.jobId === String(id)) {
+      const requirements = getApplicationRequirements();
+      const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
+      if (!requirements.isAuthenticated || !requirements.otpVerified || !seekerRoles.includes(requirements.role) || !requirements.hasResume || !requirements.profileCompleted) {
+        continueApplicationFlow(navigate, { jobId: id });
+        return;
+      }
+    } else {
+      if (!isAuthenticated) {
+        navigate('/login', { state: { from: location.pathname, intent: 'apply', jobId: id } });
+        return;
+      }
+      if (!localStorage.getItem('seekerResume')) {
+        navigate(`/resume?jobId=${encodeURIComponent(id)}`, { replace: true });
+        return;
+      }
     }
     const fetchJob = async () => {
       try {
@@ -77,26 +88,37 @@ export default function ApplyJob() {
     if (!job) return;
     if (!selectedResumeId) {
       setToast('Please select a resume before submitting.');
+      showError('Please select a resume before submitting.');
+      scrollToFeedback('error');
       return;
     }
 
     setSubmitting(true);
     try {
-      const result = await applyForJob(job.id, {
-        resumeId: selectedResumeId,
-        coverLetter: coverLetter.trim(),
-        job
-      });
-      if (result?.alreadyApplied) {
-        setExistingApplication(result.data);
+      const existing = getApplicationForJob(job.id);
+      if (existing) {
+        setExistingApplication(existing);
         return;
       }
-      const applicationId = result?.applicationId || result?.data?.id || 'new-application';
+      const application = recordApplication({
+        id: `app-${Date.now()}`,
+        jobId: String(job.id),
+        resumeId: selectedResumeId,
+        coverLetter: coverLetter.trim(),
+        job,
+        status: 'Submitted',
+        createdAt: new Date().toISOString(),
+      });
+      clearPendingApplication();
       setToast('Application submitted successfully!');
-      window.setTimeout(() => navigate(`/applications/${applicationId}`), 700);
+      showSuccess('Application submitted successfully!');
+      scrollToFeedback('top');
+      window.setTimeout(() => navigate(`/applications/${application.id}`, { state: { application, success: true } }), 700);
     } catch (error) {
       console.error('Application submission failed', error);
       setToast('Unable to submit application. Please try again.');
+      showError('Unable to submit application. Please try again.');
+      scrollToFeedback('error');
     } finally {
       setSubmitting(false);
     }
@@ -118,9 +140,9 @@ export default function ApplyJob() {
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
-        <button type="button" onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900">
+        <button type="button" onClick={() => navigate(`/jobs/${id}`, { state: { job } })} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900">
           <ArrowLeft className="h-4 w-4" />
-          Back
+          Back to Job Details
         </button>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">

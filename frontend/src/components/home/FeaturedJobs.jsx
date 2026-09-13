@@ -1,4 +1,3 @@
- import React from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, MapPin, Sparkles, ArrowRight, Briefcase } from 'lucide-react';
 
@@ -59,7 +58,7 @@ export default function FeaturedJobs() {
         {jobs.map((job, idx) => (
           <div 
             key={idx} 
-            className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1"
+            className="card-floating flex flex-col justify-between group sm:p-9"
           >
             <div>
               {/* Badges Header */}

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '/api',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -21,17 +21,7 @@ API.interceptors.request.use((config) => {
 
 API.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const status = error?.response?.status;
-
-    if (status === 401) {
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export default API;

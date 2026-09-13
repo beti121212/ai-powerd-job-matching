@@ -1,181 +1,19 @@
-import {
-  ArrowRight,
-  BriefcaseBusiness,
-  Code2,
-  Gauge,
-  MapPin,
-  Sparkles,
-  Target,
-} from "lucide-react";
+import { ArrowRight, Bell, BriefcaseBusiness, Building2, CheckCircle2, FileSearch, Gauge, Layers3, MapPin, Search, ShieldCheck, Target, Users } from "lucide-react";
 
-const stats = [
-  { label: "Profile completion", value: "82%", tone: "bg-blue-50 text-blue-700" },
-  { label: "AI Match Score", value: "94%", tone: "bg-emerald-50 text-emerald-700" },
-  { label: "Top Skills", value: "React / Node.js", tone: "bg-violet-50 text-violet-700" },
-  { label: "Recent Applications", value: "12", tone: "bg-amber-50 text-amber-700" },
-  { label: "Recommended Jobs", value: "7", tone: "bg-cyan-50 text-cyan-700" },
-];
-
-const recentApplications = [
-  { company: "Beti", role: "Frontend Engineer", status: "Interview" },
-  { company: "Amanu Labs", role: "Product Engineer", status: "Shortlisted" },
-  { company: "NexaWorks", role: "Full Stack Developer", status: "Applied" },
-];
-
-const recommendedJobs = [
-  { title: "Senior Frontend Engineer", match: "96%" },
-  { title: "Full Stack Product Engineer", match: "92%" },
-  { title: "React Developer", match: "89%" },
-];
+const stats = [[Users, "Job Seekers", "10K+", "bg-blue-50 text-blue-700"], [Building2, "Companies", "500+", "bg-emerald-50 text-emerald-700"], [BriefcaseBusiness, "Active Jobs", "2K+", "bg-amber-50 text-amber-700"], [Target, "AI Matches", "95%", "bg-violet-50 text-violet-700"], [CheckCircle2, "Successful Matches", "1K+", "bg-cyan-50 text-cyan-700"]];
+const steps = [[FileSearch, "Create Profile / Upload CV"], [Gauge, "AI Analyzes Skills & Experience"], [Target, "AI Calculates Match Score"], [BriefcaseBusiness, "Get Recommended Jobs"]];
+const features = [[Target, "AI-Powered Matching", "Match skills, experience, and qualifications."], [Gauge, "Smart Match Score", "Understand why a job fits your profile."], [FileSearch, "CV Analysis", "Extract useful skills and experience from resumes."], [BriefcaseBusiness, "Personalized Recommendations", "Discover opportunities aligned with your goals."], [Search, "Smart Job Search", "Find roles by title, location, type, and salary."], [Layers3, "Application Tracking", "Follow every application and next step."]];
+const users = [[Users, "Job Seeker", "Create a profile, upload a CV, get AI matches, apply, and track applications."], [Building2, "Employer", "Post jobs, manage applicants, find candidates, and schedule interviews."], [ShieldCheck, "Admin", "Manage users, employers, jobs, and platform activity."]];
+const jobs = [["Frontend Developer", "96% AI Match"], ["Full Stack Developer", "93% AI Match"], ["Backend Developer", "89% AI Match"]];
 
 export default function OverviewView({ onNavigate }) {
-  const handleProjects = () => onNavigate?.("projects");
-  const handleExperience = () => onNavigate?.("experience");
-  const handleContact = () => onNavigate?.("contact");
-
-  return (
-    <section className="space-y-8">
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2 text-sm font-medium text-indigo-600">
-          <Sparkles className="h-4 w-4" />
-          Product engineer • full-stack builder • AI-ready problem solver
-        </div>
-
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-          I build polished digital products that connect user needs with scalable engineering.
-        </h2>
-
-        <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-          I create responsive interfaces, efficient APIs, and reliable product workflows that help teams ship faster and users stay engaged.
-        </p>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            onClick={handleProjects}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            View projects
-            <ArrowRight className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={handleExperience}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Experience
-          </button>
-
-          <button
-            onClick={handleContact}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Contact
-          </button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {stats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className={`inline-flex rounded-xl px-2.5 py-1.5 text-xs font-semibold ${stat.tone}`}>
-              {stat.label}
-            </div>
-            <p className="mt-4 text-2xl font-bold text-slate-900">{stat.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2 text-slate-900">
-            <Target className="h-5 w-5 text-blue-600" />
-            <h3 className="text-lg font-semibold">Top Skills</h3>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {['JavaScript', 'React', 'Node.js', 'MySQL', 'Python', 'Communication'].map((skill) => (
-              <span key={skill} className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                {skill}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2 text-slate-900">
-            <Gauge className="h-5 w-5 text-emerald-600" />
-            <h3 className="text-lg font-semibold">AI Match Overview</h3>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <div className="mb-1 flex justify-between text-xs text-slate-600">
-                <span>Skills match</span>
-                <span>96%</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-200">
-                <div className="h-2 w-[96%] rounded-full bg-emerald-500" />
-              </div>
-            </div>
-            <div>
-              <div className="mb-1 flex justify-between text-xs text-slate-600">
-                <span>Experience fit</span>
-                <span>91%</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-200">
-                <div className="h-2 w-[91%] rounded-full bg-blue-500" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2 text-slate-900">
-            <BriefcaseBusiness className="h-5 w-5 text-violet-600" />
-            <h3 className="text-lg font-semibold">Recent Applications</h3>
-          </div>
-          <div className="space-y-3">
-            {recentApplications.map((item) => (
-              <div key={item.company + item.role} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{item.role}</p>
-                  <p className="text-xs text-slate-500">{item.company}</p>
-                </div>
-                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
-                  {item.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2 text-slate-900">
-            <MapPin className="h-5 w-5 text-cyan-600" />
-            <h3 className="text-lg font-semibold">Recommended Jobs</h3>
-          </div>
-          <div className="space-y-3">
-            {recommendedJobs.map((job) => (
-              <div key={job.title} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-sm font-medium text-slate-700">{job.title}</p>
-                <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">
-                  {job.match}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center gap-2 text-slate-900">
-          <Code2 className="h-5 w-5 text-indigo-600" />
-          <h3 className="text-lg font-semibold">Career Snapshot</h3>
-        </div>
-        <p className="text-sm leading-7 text-slate-600">
-          I focus on building user-centered web applications, improving product workflows, and integrating AI-powered experiences that deliver measurable business value.
-        </p>
-      </div>
-    </section>
-  );
+  const openJobs = () => onNavigate?.("jobs");
+  return <section className="space-y-8">
+    <header className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm sm:p-8"><p className="text-sm font-bold uppercase tracking-[0.16em] text-blue-600">Welcome to AI Job Match</p><h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-5xl">Find the right opportunities with AI-powered matching.</h1><p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">Connect your skills and career goals with relevant jobs through intelligent profile analysis, transparent match scores, and personalized recommendations.</p><div className="mt-6 flex flex-wrap gap-3"><button type="button" onClick={openJobs} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700"><Search className="h-4 w-4" /> Explore Jobs <ArrowRight className="h-4 w-4" /></button><button type="button" onClick={openJobs} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-100"><Target className="h-4 w-4" /> View AI Matches</button></div></header>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{stats.map(([Icon, label, value, tone]) => <article key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" /></div><p className="mt-4 text-xs font-bold text-slate-500">{label}</p><p className="mt-1 text-2xl font-black text-slate-900">{value}</p></article>)}</div>
+    <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><Target className="h-5 w-5" /></div><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-600">How AI matching works</p><h2 className="mt-1 text-2xl font-black text-slate-900">From profile to opportunity</h2></div></div><div className="mt-6 grid gap-3 md:grid-cols-4">{steps.map(([Icon, label], index) => <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-center"><span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">{index + 1}</span><Icon className="mx-auto mt-4 h-5 w-5 text-blue-600" /><p className="mt-2 text-sm font-bold text-slate-700">{label}</p></div>)}</div></article>
+    <div><div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Built for better hiring</p><h2 className="mt-1 text-2xl font-black text-slate-900">Key platform features</h2></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{features.map(([Icon, title, description]) => <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><Icon className="h-5 w-5 text-blue-600" /><h3 className="mt-4 font-black text-slate-900">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{description}</p></article>)}</div></div>
+    <div><div className="mb-4"><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">For everyone</p><h2 className="mt-1 text-2xl font-black text-slate-900">Who uses the platform?</h2></div><div className="grid gap-4 md:grid-cols-3">{users.map(([Icon, title, description]) => <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><Icon className="h-5 w-5 text-emerald-600" /><h3 className="mt-4 font-black text-slate-900">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{description}</p></article>)}</div></div>
+    <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]"><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><BriefcaseBusiness className="h-5 w-5 text-cyan-600" /><h2 className="text-xl font-black text-slate-900">Top Recommended Jobs</h2></div><div className="space-y-3">{jobs.map(([title, match]) => <div key={title} className="flex items-center justify-between rounded-xl bg-slate-50 p-3"><p className="text-sm font-bold text-slate-800">{title}</p><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">{match}</span></div>)}</div><button type="button" onClick={openJobs} className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-blue-700">Explore All Jobs <ArrowRight className="h-4 w-4" /></button></article><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><Bell className="h-5 w-5 text-cyan-600" /><h2 className="text-xl font-black text-slate-900">Recent Notifications</h2></div><div className="space-y-3">{["New AI job recommendation", "Your application was shortlisted", "New interview invitation"].map((item) => <p key={item} className="rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700">{item}</p>)}</div></article></div>
+  </section>;
 }

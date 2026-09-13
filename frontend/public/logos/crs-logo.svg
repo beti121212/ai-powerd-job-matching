@@ -1,0 +1,5 @@
+<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <path d="M 45 35 Q 45 25 50 25 Q 55 25 55 35 L 55 55 Q 55 65 45 65 Q 35 65 35 55 Z" fill="#0066CC"/>
+  <path d="M 55 50 L 70 50" fill="#0066CC" stroke="#0066CC" stroke-width="3"/>
+  <text x="120" y="60" font-size="14" font-weight="bold" fill="#0066CC" font-family="Arial, sans-serif">CRS</text>
+</svg>

@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getNextApplicationStep, getPendingApplication } from '../utils/applicationFlow';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { getPendingApplication } from '../utils/applicationFlow';
 import { 
   User, Mail, Phone, GraduationCap, 
   Briefcase, Plus, Trash2, Award, Languages, Link as LinkIcon, 
-  Target, CheckCircle2, Sparkles, X, Globe, Save, ArrowLeft
+  Target, CheckCircle2, Sparkles, X, Globe, Save
 } from 'lucide-react';
 
-const Profile = ({ userData = {}, cvFile = null }) => {
+const Profile = ({ userData = {}, cvFile = null, onContinue, onNavigateNext }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const API_URL = import.meta.env.VITE_BACKEND_URL || '/api';
+  const excludedSkills = new Set(['javascript', 'python', 'java', 'sql', 'networking', 'communication']);
 
   // Safe fallback to load stored user from localStorage
   const getInitialUser = () => {
@@ -19,17 +22,36 @@ const Profile = ({ userData = {}, cvFile = null }) => {
     }
   };
   const savedUser = getInitialUser();
+  const pendingCv = location.state?.updatedProfile || (() => {
+    try { return JSON.parse(localStorage.getItem('pending_cv_data') || 'null'); } catch { return null; }
+  })();
+  const pendingSkills = Array.isArray(pendingCv?.skills) ? pendingCv.skills.map((skill) => typeof skill === 'string' ? skill : skill.skill_name).filter(Boolean).filter((skill) => !excludedSkills.has(skill.trim().toLowerCase())) : [];
+  const pendingEducation = Array.isArray(pendingCv?.education) ? pendingCv.education.map((item, index) => ({
+    id: item.id || `cv-education-${index}`,
+    university: item.school_name || item.institution || '',
+    degree: item.degree || '',
+    department: item.field_of_study || '',
+    graduationYear: item.graduationYear || (item.end_date ? String(item.end_date).slice(0, 4) : ''),
+  })) : [];
+  const pendingExperience = Array.isArray(pendingCv?.experience) ? pendingCv.experience.map((item, index) => ({
+    id: item.id || `cv-experience-${index}`,
+    company: item.company_name || item.company || '',
+    position: item.job_title || item.role || '',
+    startDate: item.start_date ? String(item.start_date).slice(0, 7) : '',
+    endDate: item.end_date ? String(item.end_date).slice(0, 7) : (item.duration || ''),
+    responsibilities: Array.isArray(item.responsibilities) ? item.responsibilities.join('\n') : item.description || '',
+  })) : [];
+  const pendingName = pendingCv?.fullName || pendingCv?.full_name || '';
+  const pendingNameParts = pendingName.trim().split(/\s+/).filter(Boolean);
+  const pendingLocation = pendingCv?.location || '';
+  const pendingLocationParts = pendingLocation.split(',').map((part) => part.trim()).filter(Boolean);
 
   // Dynamic Lists (Education, Experience, Skills, Languages)
-  const [educationList, setEducationList] = useState([
-    { id: 1, university: 'Addis Ababa University', degree: "Bachelor's", department: 'Computer Science', graduationYear: '2024' }
-  ]);
+  const [educationList, setEducationList] = useState(pendingEducation);
 
-  const [experienceList, setExperienceList] = useState([
-    { id: 1, company: 'Tech Solutions Inc', position: 'Frontend Developer', startDate: '2024-01', endDate: 'Present', responsibilities: 'Building React components & UI interfaces.' }
-  ]);
+  const [experienceList, setExperienceList] = useState(pendingExperience);
 
-  const [skills, setSkills] = useState(['React', 'JavaScript', 'Node.js']);
+  const [skills, setSkills] = useState(pendingSkills);
   const [newSkill, setNewSkill] = useState('');
 
   const [languages, setLanguages] = useState(['English', 'አማርኛ']);
@@ -37,23 +59,23 @@ const Profile = ({ userData = {}, cvFile = null }) => {
 
   // Personal Profile Data State
   const [profileData, setProfileData] = useState({
-    firstName: userData?.firstName || savedUser?.full_name?.split(' ')[0] || savedUser?.firstName || 'Abebe',
-    lastName: userData?.lastName || savedUser?.full_name?.split(' ')[1] || savedUser?.lastName || 'Bikila',
-    email: userData?.email || savedUser?.email || 'abebe@example.com',
-    phone: savedUser?.phone || '+251 900 000 000',
+    firstName: userData?.firstName || pendingNameParts[0] || savedUser?.full_name?.split(' ')[0] || savedUser?.firstName || '',
+    lastName: userData?.lastName || pendingNameParts.slice(1).join(' ') || savedUser?.full_name?.split(' ').slice(1).join(' ') || savedUser?.lastName || '',
+    email: userData?.email || pendingCv?.email || savedUser?.email || '',
+    phone: pendingCv?.phone || savedUser?.phone || '',
     dob: '',
-    gender: 'Male',
-    country: 'Ethiopia',
-    city: 'Addis Ababa',
-    github: 'https://github.com',
-    linkedin: 'https://linkedin.com',
-    portfolio: 'https://myportfolio.com',
-    jobCategory: 'Software Engineering',
-    preferredJob: userData?.preferredJob || 'Full Stack Developer',
-    employmentType: 'Full-Time',
-    salaryExpectation: userData?.salaryExpectation || '$1,500 / month',
-    preferredCity: 'Addis Ababa',
-    preferredWorkSetup: 'Remote'
+    gender: '',
+    country: pendingLocationParts[1] || '',
+    city: pendingLocationParts[0] || '',
+    github: '',
+    linkedin: '',
+    portfolio: '',
+    jobCategory: '',
+    preferredJob: userData?.preferredJob || '',
+    employmentType: '',
+    salaryExpectation: userData?.salaryExpectation || '',
+    preferredCity: '',
+    preferredWorkSetup: ''
   });
 
   const completionPercentage = 85;
@@ -112,61 +134,71 @@ const Profile = ({ userData = {}, cvFile = null }) => {
   };
 
   // 1. መረጃውን ለማስቀመጥ እና ወደ Dashboard ለመመለስ የተስተካከለ Handler
-  const handleSaveProfile = () => {
-    const fullProfile = {
-      ...profileData,
-      education: educationList,
-      experience: experienceList,
+  const handleSaveProfile = async () => {
+    const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();
+    const payload = {
+      personal_info: {
+        full_name: fullName,
+        email: profileData.email,
+        phone: profileData.phone,
+        headline: pendingCv?.headline || pendingCv?.professional_title || profileData.preferredJob,
+        bio: profileData.bio || '',
+        location: [profileData.city, profileData.country].filter(Boolean).join(', '),
+        city: profileData.city,
+        country: profileData.country,
+      },
       skills,
-      languages
+      education: educationList.map((item) => ({
+        school_name: item.university,
+        degree: item.degree,
+        field_of_study: item.department,
+        end_date: item.graduationYear ? `${item.graduationYear}-01-01` : null,
+      })),
+      experience: experienceList.map((item) => ({
+        company_name: item.company,
+        job_title: item.position,
+        start_date: item.startDate ? `${item.startDate}-01` : null,
+        end_date: item.endDate && !/present|current/i.test(item.endDate) ? `${item.endDate}-01` : null,
+        is_current: /present|current/i.test(item.endDate || ''),
+        description: item.responsibilities,
+      })),
     };
-    
-    // 1. የProfile መረጃውን ማስቀመጥ
-    localStorage.setItem('userProfile', JSON.stringify(fullProfile));
 
-    // 2. ዋናው user መረጃ እና role እንዳይጠፋ ማረጋገጥ (የ ProtectedRoute ችግር እንዳይፈጠር)
+    const response = await fetch(`${API_URL.replace(/\/$/, '')}/seeker/profile/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) return;
+
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const updatedUser = {
-      ...currentUser,
-      full_name: `${profileData.firstName} ${profileData.lastName}`.trim(),
-      email: profileData.email,
-      phone: profileData.phone,
-      // የቆየውን role መያዝ ወይም ከሌለ 'job_seeker' መስጠት
-      role: currentUser.role || currentUser.userType || 'job_seeker'
-    };
+    localStorage.setItem('userProfile', JSON.stringify({ ...profileData, education: educationList, experience: experienceList, skills, languages }));
+    localStorage.setItem('user', JSON.stringify({ ...currentUser, full_name: fullName, email: profileData.email, phone: profileData.phone, onboardingProfileCompleted: true }));
+    localStorage.removeItem('pending_cv_data');
 
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-
-    // 3. በቀጥታ ወደ Seeker Dashboard መራት
-    const pending = getPendingApplication();
-    navigate(pending?.jobId ? getNextApplicationStep(pending.jobId) : '/seeker-dashboard');
-  };
-
-  // 2. Back button ሲጫኑ User state-ኡን ጠብቆ የሚመልስ Handler
-  const handleBackToDashboard = () => {
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    if (!currentUser.role) {
-      currentUser.role = 'job_seeker';
-      localStorage.setItem('user', JSON.stringify(currentUser));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const continueHandler = onContinue || onNavigateNext;
+    if (continueHandler) {
+      continueHandler({ ...profileData, fullName, education: educationList, experience: experienceList, skills, languages });
+      return;
     }
-    navigate('/seeker-dashboard');
+
+    // Return applicants to the original job so the updated Apply state is visible.
+    const pending = getPendingApplication();
+    if (pending?.jobId) {
+      navigate(pending.returnPath || `/job-details/${encodeURIComponent(pending.jobId)}`, {
+        state: { job: pending.selectedJob || undefined },
+        replace: true,
+      });
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 max-w-4xl mx-auto p-4 pb-10">
       
-      {/* Navigation Top Bar with Link */}
       <div className="flex items-center justify-between">
-        
-        {/* ወደ Dashboard የመመለሻ አዝራር */}
-        <button
-          type="button"
-          onClick={handleBackToDashboard}
-          className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-        </button>
-
         {/* Save Profile Button */}
         <button
           type="button"
@@ -187,7 +219,7 @@ const Profile = ({ userData = {}, cvFile = null }) => {
         </div>
         <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
           <div 
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 h-full rounded-full transition-all duration-500"
+            className="bg-linear-to-r from-blue-600 to-indigo-600 h-full rounded-full transition-all duration-500"
             style={{ width: `${completionPercentage}%` }}
           />
         </div>
@@ -255,7 +287,7 @@ const Profile = ({ userData = {}, cvFile = null }) => {
           </div>
 
           <div>
-            <label className="block text-slate-600 mb-1">Date of Birth (Optional)</label>
+            <label className="block text-slate-600 mb-1">Date of Birth <span className="italic">(Optional)</span></label>
             <input 
               type="date" 
               value={profileData.dob} 
@@ -265,7 +297,7 @@ const Profile = ({ userData = {}, cvFile = null }) => {
           </div>
 
           <div>
-            <label className="block text-slate-600 mb-1">Gender (Optional)</label>
+            <label className="block text-slate-600 mb-1">Gender <span className="italic">(Optional)</span></label>
             <select 
               value={profileData.gender} 
               onChange={(e) => setProfileData({ ...profileData, gender: e.target.value })}
@@ -434,11 +466,8 @@ const Profile = ({ userData = {}, cvFile = null }) => {
 
         <div className="flex flex-wrap gap-2 py-1">
           {skills.map((skill) => (
-            <span key={skill} className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1.5 border border-blue-200">
+            <span key={skill} className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center border border-blue-200">
               {skill}
-              <button type="button" onClick={() => handleRemoveSkill(skill)} className="hover:text-red-600 cursor-pointer">
-                <X className="w-3.5 h-3.5" />
-              </button>
             </span>
           ))}
         </div>
@@ -469,11 +498,8 @@ const Profile = ({ userData = {}, cvFile = null }) => {
 
         <div className="flex flex-wrap gap-2 py-1">
           {languages.map((lang) => (
-            <span key={lang} className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold flex items-center gap-1.5 border border-purple-200">
+            <span key={lang} className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold flex items-center border border-purple-200">
               {lang}
-              <button type="button" onClick={() => handleRemoveLanguage(lang)} className="hover:text-red-600 cursor-pointer">
-                <X className="w-3.5 h-3.5" />
-              </button>
             </span>
           ))}
         </div>
@@ -612,6 +638,16 @@ const Profile = ({ userData = {}, cvFile = null }) => {
             </select>
           </div>
         </div>
+      </div>
+
+      <div className="flex justify-end border-t border-slate-200 pt-5">
+        <button
+          type="button"
+          onClick={handleSaveProfile}
+          className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-blue-700"
+        >
+          Continue <span aria-hidden="true">→</span>
+        </button>
       </div>
 
     </div>

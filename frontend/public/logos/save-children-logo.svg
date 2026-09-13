@@ -1,0 +1,5 @@
+<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="80" fill="#fdf2f2"/>
+  <rect width="200" height="80" fill="none" stroke="#d32f2f" stroke-width="2"/>
+  <text x="100" y="45" font-size="16" font-weight="bold" fill="#d32f2f" text-anchor="middle" font-family="Arial, sans-serif">Save Kids</text>
+</svg>

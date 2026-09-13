@@ -1,4 +1,3 @@
-import React from "react";
 import {
   BriefcaseBusiness,
   Briefcase,
@@ -8,6 +7,10 @@ import {
   Layers3,
   MessageSquareText,
   Sparkles,
+  Target,
+  BarChart3,
+  FileText,
+  UserRound,
 } from "lucide-react";
 
 const defaultNavItems = [
@@ -17,8 +20,9 @@ const defaultNavItems = [
   { id: "projects", label: "Projects" },
   { id: "services", label: "Services" },
   { id: "jobs", label: "Jobs" },
+  { id: "about", label: "About" },
   { id: "prompts", label: "Prompt Studio" },
-  { id: "contact", label: "Contact" },
+  { id: "about", label: "About" },
 ];
 
 export default function Sidebar({
@@ -42,19 +46,24 @@ export default function Sidebar({
     projects: FolderKanban,
     services: Layers3,
     jobs: Briefcase,
+    about: Sparkles,
+    matches: Target,
+    scores: BarChart3,
+    applications: FileText,
+    profile: UserRound,
     prompts: MessageSquareText,
     contact: ContactRound,
   };
 
   return (
     <aside
-      className={`w-full rounded-2xl border border-slate-200 bg-white shadow-sm ${
+      className={`w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${
         sidebarOpen ? "block" : "hidden md:block"
       }`}
     >
       <div className="p-4">
         <div className="mb-5 flex items-center gap-3 border-b border-slate-200 pb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-sm font-bold text-white">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 text-sm font-bold text-white shadow-sm">
             AD
           </div>
 
@@ -66,11 +75,11 @@ export default function Sidebar({
           </div>
         </div>
 
-        <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
             Status
           </p>
-          <p className="mt-2 text-sm font-medium text-emerald-600">
+          <p className="mt-2 text-sm font-semibold text-emerald-600">
             {profile.available}
           </p>
         </div>

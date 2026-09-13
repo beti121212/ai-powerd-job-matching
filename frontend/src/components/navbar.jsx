@@ -1,39 +1,169 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LogIn,
+  LogOut,
   LayoutDashboard,
   Menu,
   UserPlus,
   X,
-  LogOut,
+  ChevronDown,
+  Play,
+  Repeat,
 } from 'lucide-react';
 
 // የፎቶ Path — use local asset fallback in project
-import heroBannerImg from '../assets/hero.png';
+import siteLogo from '../pages/images/logo1.png';
 import { useAuth } from '../context/AuthContext';
+import LogoutFlowModals from './LogoutFlowModals';
+import { getNextOnboardingStep } from '../utils/applicationFlow';
+import API from '../services/api';
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, token, isAuthenticated, setSession, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [logoutSession, setLogoutSession] = useState(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
 
   const isActive = (path) => location.pathname === path;
   // የ Role ዓይነቶች ማረጋገጫ
   const role = (user?.role || user?.userType || '').toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
-  const isSeeker = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'].includes(role);
   const isEmployer = ['employer', 'company', 'recruiter'].includes(role);
   const isAdmin = role === 'admin';
-  const isSeekerDashboardPage = ['/seeker-dashboard', '/seekerDashboard', '/dashboard'].includes(location.pathname);
-  const isEmployerDashboardPage = ['/employer-dashboard', '/employer/dashboard', '/employer/candidates', '/employer/post-job'].includes(location.pathname);
-
+  const isSeekerDashboardPage = ['/dashboard', '/seeker-dashboard', '/seekerDashboard'].includes(location.pathname);
   const displayName = user?.name || user?.full_name || user?.email || 'User';
   const avatarUrl = user?.avatarUrl || user?.avatar_url;
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
+
+  const getStoredUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
   };
+
+  const isOnboardingInProgress = () => {
+    const storedUser = getStoredUser();
+    const role = String(storedUser.role || user?.role || 'job_seeker').toLowerCase();
+    const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
+    const employerRoles = ['employer', 'company', 'recruiter'];
+
+    if (seekerRoles.includes(role)) {
+      const hasUploadedCv = Boolean(localStorage.getItem('pending_cv_data') || storedUser.onboardingCvUploaded || storedUser.has_cv || storedUser.cvFileName);
+      const isProfileComplete = Boolean(storedUser.profileCompleted || storedUser.onboardingProfileCompleted || storedUser.profileComplete);
+      return !isProfileComplete || !hasUploadedCv;
+    }
+
+    if (employerRoles.includes(role)) {
+      return !Boolean(storedUser.companyVerified || storedUser.companyProfileComplete);
+    }
+
+    return false;
+  };
+
+  const getRoleLabel = (roleName) => {
+    const normalized = String(roleName || '').toLowerCase().replace(/[\s-]+/g, '_');
+    if (['employer', 'company', 'recruiter'].includes(normalized)) return 'Employer';
+    if (['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'].includes(normalized)) return 'Job Seeker';
+    return 'Job Seeker';
+  };
+
+  const handleResumeProgress = async () => {
+    const storedUser = getStoredUser();
+    const activeRole = String(storedUser.role || localStorage.getItem('activeRole') || user?.role || 'job_seeker').toLowerCase().replace(/[\s-]+/g, '_');
+    const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
+    const employerRoles = ['employer', 'company', 'recruiter'];
+
+    setProfileMenuOpen(false);
+
+    if (seekerRoles.includes(activeRole)) {
+      try {
+        const { data } = await API.get('/seeker/profile-status');
+        const step = String(data?.onboarding_step || 'cv_upload');
+        const cvSkipped = Boolean(data?.cv_skipped);
+        const profileCompleted = Boolean(data?.profile_completed);
+
+        if (profileCompleted || step === 'completed') {
+          navigate('/seeker-dashboard', { replace: true });
+        } else if (step === 'personal_info' || cvSkipped) {
+          console.log('Navigating from Continue button to personal-info');
+          navigate('/seeker/personal-info', { replace: true });
+        } else {
+          navigate('/seeker/cv-upload', { replace: true });
+        }
+        return;
+      } catch (error) {
+        console.warn('Profile status fallback used:', error?.message || error);
+      }
+
+      const localStep = String(localStorage.getItem('onboarding_step') || '').trim().toLowerCase();
+      const isCvSkipped = String(localStorage.getItem('cv_skipped') || '').toLowerCase() === 'true';
+      const localProfileComplete = Boolean(storedUser.profileCompleted || storedUser.onboardingProfileCompleted || storedUser.profileComplete || localStorage.getItem('userProfile'));
+
+      if (localProfileComplete || localStep === 'completed') {
+        navigate('/seeker-dashboard', { replace: true });
+      } else if (localStep === 'personal_info' || isCvSkipped) {
+        console.log('Navigating from Continue button to personal-info');
+        navigate('/seeker/personal-info', { replace: true });
+      } else {
+        navigate('/seeker/cv-upload', { replace: true });
+      }
+      return;
+    }
+
+    if (employerRoles.includes(activeRole)) {
+      const isCompanyVerified = Boolean(storedUser.companyVerified || storedUser.companyProfileComplete);
+      if (isCompanyVerified) {
+        navigate('/employer-dashboard', { replace: true });
+      } else {
+        navigate('/employer/onboarding', { replace: true });
+      }
+      return;
+    }
+
+    navigate(getNextOnboardingStep(), { replace: true });
+  };
+
+  const handleAvatarClick = (e) => {
+    e.stopPropagation();
+    setProfileMenuOpen((open) => !open);
+  };
+
+  const resumeOnboarding = () => {
+    handleResumeProgress();
+  };
+
+  const toggleProfileMenu = () => {
+    setProfileMenuOpen((open) => !open);
+  };
+
+  const handleSwitchRole = () => {
+    setProfileMenuOpen(false);
+    localStorage.removeItem('activeRole');
+    navigate('/role-selection', { replace: true });
+  };
+
+  const goToDashboard = () => {
+    setProfileMenuOpen(false);
+    navigate(isEmployer ? '/employer/dashboard' : isAdmin ? '/admin-dashboard' : '/dashboard');
+  };
+  const handleLogout = () => {
+    setProfileMenuOpen(false);
+    setLogoutSession({ token, user });
+    setLogoutOpen(true);
+  };
+
+  useEffect(() => {
+    const closeProfileMenu = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) setProfileMenuOpen(false);
+    };
+    document.addEventListener('mousedown', closeProfileMenu);
+    return () => document.removeEventListener('mousedown', closeProfileMenu);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm transition-all w-full">
@@ -41,21 +171,13 @@ export default function Navbar() {
       <div className="w-full px-4 sm:px-6 lg:px-8 h-20 sm:h-24 flex items-center justify-between gap-4">
 
         {/* BRAND LOGO - ሙሉ በሙሉ ወደ ግራ */}
-        <Link to="/" className="flex items-center gap-2.5 sm:gap-3.5 group shrink-0">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform duration-200 border border-slate-100">
+        <Link to="/" className="flex items-center gap-2.5 group shrink-0">
+          <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-200 bg-slate-950 shadow-md shadow-blue-500/10 transition-transform duration-200 group-hover:scale-[1.02] sm:h-20 sm:w-20">
             <img
-              src={heroBannerImg}
-              alt="Job Matching Logo"
-              className="w-full h-full object-cover"
+              src={siteLogo}
+              alt="AI Job Match"
+              className="h-full w-full object-contain object-center"
             />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors lowercase leading-none">
-              job <span className="text-blue-600">matching</span>
-            </span>
-            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 tracking-wider uppercase mt-0.5 sm:mt-1">
-              AI Platform
-            </span>
           </div>
         </Link>
 
@@ -113,14 +235,7 @@ export default function Navbar() {
           </Link>
 
           {/* ተጠቃሚው Login ካደረገ የሚታዩ Dashboard Links */}
-          {isAuthenticated && isSeeker && isSeekerDashboardPage && (
-            <Link to="/seeker-dashboard" className="text-xs font-extrabold bg-[var(--brand-primary)] text-white px-3.5 py-1.5 rounded-full hover:bg-[var(--brand-primary-hover)] transition flex items-center gap-2 shrink-0">
-              <LayoutDashboard className="w-4 h-4" />
-              <span>Seeker dashboard</span>
-            </Link>
-          )}
-
-          {isAuthenticated && isEmployer && isEmployerDashboardPage && (
+          {isAuthenticated && isEmployer && (
             <Link to="/employer-dashboard" className="text-xs font-extrabold bg-indigo-50 text-indigo-600 px-3.5 py-1.5 rounded-full hover:bg-indigo-100 transition flex items-center gap-2 shrink-0">
               <LayoutDashboard className="w-4 h-4" />
               <span>Employer dashboard</span>
@@ -135,24 +250,49 @@ export default function Navbar() {
           )}
         </nav>
 
-        {/* DESKTOP RIGHT BUTTONS - ሙሉ በሙሉ ወደ ቀኝ */}
         <div className="hidden lg:flex items-center gap-3 shrink-0 ml-auto">
-          {isAuthenticated && isEmployer ? (
-            <div className="flex items-center gap-3">
-              {avatarUrl ? <img src={avatarUrl} alt={displayName} className="h-9 w-9 rounded-full object-cover" /> : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{displayName.charAt(0).toUpperCase()}</div>}
-              <span className="max-w-40 truncate text-sm font-bold text-slate-700">{displayName}</span>
-              <button type="button" onClick={handleLogout} className="flex h-10 items-center gap-2 rounded-xl bg-black px-4 text-sm font-bold leading-none text-white shadow-sm transition hover:bg-slate-800" aria-label="Log out"><LogOut className="h-4 w-4" /><span>Log Out</span></button>
+          {isAuthenticated && (
+            <div ref={profileMenuRef} className="relative">
+              <div className="flex min-h-11 items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100">
+                <button
+                  id="user-avatar-circle"
+                  type="button"
+                  onClick={handleAvatarClick}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 font-black text-blue-700 shadow-sm ring-2 ring-white transition hover:bg-blue-200"
+                  aria-label="Resume progress shortcut"
+                >
+                  <span className="select-none">Y</span>
+                </button>
+                <button type="button" onClick={toggleProfileMenu} className="flex items-center gap-1.5 text-slate-700" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-label="Open account menu">
+                  <span className="max-w-40 truncate font-bold text-slate-700">{displayName}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+              {profileMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl" role="menu">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-3 py-3">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black text-slate-900">{displayName}</span>
+                      <span className="mt-1 inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-700">{getRoleLabel(role)}</span>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => { setProfileMenuOpen(false); handleResumeProgress(); }} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700" role="menuitem">
+                    <Play className="h-4 w-4" />
+                    <span>Continue Profile Setup</span>
+                  </button>
+                  <button type="button" onClick={handleSwitchRole} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-100" role="menuitem">
+                    <Repeat className="h-4 w-4" />
+                    <span>Switch Role</span>
+                  </button>
+                  <button type="button" onClick={handleLogout} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 transition hover:bg-red-50" role="menuitem">
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
             </div>
-          ) : isAuthenticated ? (
-            <div className="flex items-center gap-3">
-              {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold">{displayName.charAt(0).toUpperCase()}</div>}
-              <span className="text-sm font-bold text-slate-700">{displayName}</span>
-              <button type="button" onClick={handleLogout} className="brand-button text-sm px-4 py-2" aria-label="Log out">
-                <LogOut className="w-4 h-4" />
-                <span>Log Out</span>
-              </button>
-            </div>
-          ) : (
+          )}
+          {!isAuthenticated && !isSeekerDashboardPage && (
             <>
               <Link to="/login" className="brand-button text-base px-5 xl:px-6 py-2.5"><LogIn className="w-5 h-5 text-blue-600" /><span>Log In</span></Link>
               <Link to="/register" className="brand-button text-base px-6 xl:px-7 py-2.5"><UserPlus className="w-5 h-5" /><span>Sign Up</span></Link>
@@ -229,17 +369,6 @@ export default function Navbar() {
             </Link>
 
             {/* Mobile User Consoles */}
-            {isAuthenticated && isSeeker && isSeekerDashboardPage && (
-              <Link
-                to="/seeker-dashboard"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="mx-2 my-1 px-4 py-3 rounded-xl text-sm font-extrabold bg-[var(--brand-primary)] text-white flex items-center gap-2"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span>Seeker dashboard</span>
-              </Link>
-            )}
-
             {isAuthenticated && isEmployer && (
               <Link
                 to="/employer-dashboard"
@@ -262,32 +391,34 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Mobile Action Buttons */}
-            <div className="pt-3 mt-2 border-t border-slate-100 flex flex-col gap-2.5">
-              {isAuthenticated && isEmployer ? (
-                <>
-                  <div className="flex items-center gap-3 px-4 py-2 text-sm font-bold text-slate-700">
-                    {avatarUrl ? <img src={avatarUrl} alt={displayName} className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">{displayName.charAt(0).toUpperCase()}</div>}
-                    <span>{displayName}</span>
-                  </div>
-                  <button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="brand-button w-full text-base"><LogOut className="w-5 h-5" /><span>Log Out</span></button>
-                </>
-              ) : isAuthenticated ? (
-                <>
-                  <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="brand-button w-full text-base"><LogIn className="w-5 h-5 text-blue-600" /><span>Log In</span></Link>
-                  <Link to="/register" onClick={() => setIsMobileMenuOpen(false)} className="brand-button w-full text-base"><UserPlus className="w-5 h-5" /><span>Sign Up</span></Link>
-                </>
-              ) : (
-                <>
-                  <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="brand-button w-full text-base"><LogIn className="w-5 h-5 text-blue-600" /><span>Log In</span></Link>
-                  <Link to="/register" onClick={() => setIsMobileMenuOpen(false)} className="brand-button w-full text-base"><UserPlus className="w-5 h-5" /><span>Sign Up</span></Link>
-                </>
-              )}
-            </div>
+            {isAuthenticated && (
+              <div ref={profileMenuRef} className="relative pt-3 mt-2 border-t border-slate-100">
+                <button type="button" onClick={handleResumeProgress} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-4 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50" aria-expanded={profileMenuOpen} aria-haspopup="menu" aria-label="Open account menu">
+                  {avatarUrl ? <img src={avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">{displayName.charAt(0).toUpperCase()}</div>}
+                  <span className="flex-1 truncate">{displayName}</span><ChevronDown className={`h-4 w-4 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {profileMenuOpen && <div className="mt-1 space-y-1 px-1"><button type="button" onClick={() => { handleResumeProgress(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700"><Play className="w-5 h-5" /><span>{isOnboardingInProgress() ? 'Continue Profile Setup' : 'Dashboard / My Profile'}</span></button><button type="button" onClick={() => { goToDashboard(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"><LayoutDashboard className="w-5 h-5" /><span>Go to Dashboard</span></button><button type="button" onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50"><LogOut className="w-5 h-5" /><span>Log Out</span></button></div>}
+              </div>
+            )}
+            {!isAuthenticated && !isSeekerDashboardPage && (
+              <div className="pt-3 mt-2 border-t border-slate-100 flex flex-col gap-2.5">
+                <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="brand-button w-full text-base"><LogIn className="w-5 h-5 text-blue-600" /><span>Log In</span></Link>
+                <Link to="/register" onClick={() => setIsMobileMenuOpen(false)} className="brand-button w-full text-base"><UserPlus className="w-5 h-5" /><span>Sign Up</span></Link>
+              </div>
+            )}
 
           </div>
         </div>
       )}
+
+      {logoutOpen && <LogoutFlowModals
+        user={logoutSession?.user}
+        token={logoutSession?.token}
+        logout={logout}
+        setSession={setSession}
+        navigate={navigate}
+        onClose={() => setLogoutOpen(false)}
+      />}
     </header>
   );
 }

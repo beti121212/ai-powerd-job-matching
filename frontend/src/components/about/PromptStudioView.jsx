@@ -1,41 +1,13 @@
-import { Bot, FileText, MessageSquareText, Sparkles, Wand2 } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Bell, Bot, BriefcaseBusiness, CalendarDays, CheckCircle2, FileText, MessageSquareText, Send, Sparkles, Target, Wand2 } from "lucide-react";
 
-const promptCards = [
-  { title: "Generate Cover Letter", description: "Create tailored cover letters that match a specific role and your background.", icon: FileText },
-  { title: "Improve CV", description: "Enhance your CV wording, structure, and impact for better recruiter visibility.", icon: Sparkles },
-  { title: "Interview Questions", description: "Prepare role-specific interview questions and strong answer strategies.", icon: MessageSquareText },
-  { title: "Job Application Prompt", description: "Generate refined application prompts for job portals and recruiter outreach.", icon: Wand2 },
-  { title: "Custom AI Prompt", description: "Draft bespoke AI instructions for niche tasks and specific career goals.", icon: Bot },
-];
+const prompts = ["Analyze My CV", "Recommend Jobs for Me", "Check My Skills", "Explain My Match Score", "Suggest Skills to Learn", "Improve My CV", "Interview Help", "Generate a Cover Letter"];
+const promptIcons = [FileText, BriefcaseBusiness, Target, Sparkles, Wand2, FileText, MessageSquareText, FileText];
+const recommendations = [["Frontend Developer", "96%"], ["Full Stack Developer", "92%"], ["Junior Software Engineer", "88%"]];
 
 export default function PromptStudioView() {
-  return (
-    <section className="space-y-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-          <Wand2 className="h-3.5 w-3.5" />
-          Prompt Studio
-        </div>
-
-        <h2 className="text-3xl font-bold text-slate-900">AI Career Tools</h2>
-      </div>
-
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {promptCards.map(({ title, description, icon: Icon }) => (
-          <div key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <Icon className="h-5 w-5" />
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-900">{title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-
-            <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600">
-              <Sparkles className="h-4 w-4" /> Ready
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+  const [messages, setMessages] = useState([{ role: "assistant", text: "Hello! How can I help with your career today?" }]);
+  const [input, setInput] = useState("");
+  const ask = (text) => { if (!text.trim()) return; setMessages((current) => [...current, { role: "user", text }, { role: "assistant", text: `I can help with ${text.toLowerCase()}. I will use your skills, CV, experience, and career goals to suggest practical next steps.` }]); setInput(""); };
+  return <section className="space-y-6"><header className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm sm:p-8"><span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-blue-700"><Bot className="h-3.5 w-3.5" /> AI Career Assistant</span><h1 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Ask AI anything about your career, skills, CV, and job opportunities.</h1><p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">Your personal assistant for career guidance, job recommendations, CV improvement, and interview preparation.</p></header><div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]"><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-4"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700"><Bot className="h-5 w-5" /></div><div><h2 className="text-lg font-black text-slate-900">Chat with AI</h2><p className="text-xs text-slate-500">Your personal career assistant</p></div></div><div className="min-h-64 space-y-3">{messages.map((message, index) => <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === "user" ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-700"}`}>{message.role === "assistant" && <Bot className="mb-1 mr-1 inline h-4 w-4 text-blue-600" />}{message.text}</div></div>)}</div><form onSubmit={(event) => { event.preventDefault(); ask(input); }} className="mt-5 flex gap-2 border-t border-slate-100 pt-4"><input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask anything about your career..." className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" /><button type="submit" aria-label="Send message" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700"><Send className="h-4 w-4" /></button></form></article><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><Sparkles className="h-5 w-5 text-amber-500" /><h2 className="text-lg font-black text-slate-900">Quick Prompts</h2></div><div className="space-y-2">{prompts.map((prompt, index) => { const Icon = promptIcons[index]; return <button key={prompt} type="button" onClick={() => ask(prompt)} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-left text-sm font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50"><Icon className="h-4 w-4 text-blue-600" />{prompt}<ArrowRight className="ml-auto h-4 w-4 text-slate-400" /></button>; })}</div></article></div><div className="grid gap-6 lg:grid-cols-2"><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><Target className="h-5 w-5 text-emerald-600" /><h2 className="text-lg font-black text-slate-900">Career Insights</h2></div><div className="grid gap-4 sm:grid-cols-2"><div className="rounded-xl bg-emerald-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Your strengths</p><p className="mt-3 text-sm font-semibold leading-6 text-slate-700">React.js<br />JavaScript<br />Problem Solving</p></div><div className="rounded-xl bg-amber-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-amber-700">Skills to improve</p><p className="mt-3 text-sm font-semibold leading-6 text-slate-700">Node.js<br />TypeScript</p></div></div><div className="mt-4 rounded-xl bg-blue-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-blue-700">Suggested career path</p><p className="mt-2 text-sm font-bold text-slate-700">Junior Developer <ArrowRight className="mx-1 inline h-4 w-4" /> Frontend Developer <ArrowRight className="mx-1 inline h-4 w-4" /> Full Stack Developer</p></div></article><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><BriefcaseBusiness className="h-5 w-5 text-violet-600" /><h2 className="text-lg font-black text-slate-900">Top AI Recommendations</h2></div><div className="space-y-3">{recommendations.map(([title, score]) => <div key={title} className="flex items-center justify-between rounded-xl bg-slate-50 p-3"><p className="text-sm font-bold text-slate-800">{title}</p><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">{score} Match</span></div>)}</div><div className="mt-5 flex items-center gap-2 text-sm font-bold text-slate-700"><CalendarDays className="h-4 w-4 text-blue-600" /> Interview Preparation</div><p className="mt-2 text-sm text-slate-500">Practice technical, HR, and mock interview questions with AI.</p></article></div><div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><Bell className="h-5 w-5 text-cyan-600" /><h2 className="text-lg font-black text-slate-900">Assistant Capabilities</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{["CV Analysis", "Career Planning", "Job Recommendations", "Interview Preparation"].map((item) => <div key={item} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700"><CheckCircle2 className="h-4 w-4 text-emerald-500" />{item}</div>)}</div></div></section>;
 }

@@ -1,91 +1,94 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
 import './login.css';
-import { getNextApplicationStep, getPendingApplication, setPendingApplication } from '../utils/applicationFlow';
+import GoogleAuthButton from '../components/GoogleAuthButton';
+import { continueApplicationFlow, getNextOnboardingStep, getPendingApplication } from '../utils/applicationFlow';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../hooks/useToast.js';
+import { scrollToFeedback } from '../utils/scrollHelper.js';
+import { resolveUserRole } from '../utils/authSession';
 import {
-  Sparkles, ShieldCheck, Cpu, Mail, Lock,
-  ArrowRight, Eye, EyeOff, Target, ArrowLeft, RefreshCw
+  Sparkles, ShieldCheck, Cpu, Lock,
+  ArrowRight, Eye, EyeOff, Target
 } from 'lucide-react';
+import EmailInputWithDomains from '../components/EmailInputWithDomains';
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { setSession } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   // Redirect or success message passed from Register step
   const successMessage = location.state?.message || '';
-
-  const loginMode = 'password';
-  const [otpStep, setOtpStep] = useState(1); // 1 = Enter Email, 2 = Enter OTP Code
 
   // Form State
   const [formData, setFormData] = useState({
     emailOrPhone: '',
     password: '',
-    otp: ['', '', '', '', '', '']
   });
 
   // UI States
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState('');
-  const [apiSuccess, setApiSuccess] = useState(successMessage);
-  const [otpTimer, setOtpTimer] = useState(0);
 
   const API_URL = import.meta.env.VITE_BACKEND_URL || '/api';
+  const AUTH_API_URL = `${API_URL.replace(/\/$/, '')}/auth`;
 
   const validateForm = () => {
     const nextErrors = {};
-    if (!formData.emailOrPhone.trim()) nextErrors.emailOrPhone = 'Please enter your email address';
-    if (!formData.password) nextErrors.password = 'Please enter your password';
+    const email = formData.emailOrPhone.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.emailOrPhone = 'Please provide a valid email address.';
+    if (typeof formData.password !== 'string' || formData.password.length < 6) nextErrors.password = 'Password is required and must be at least 6 characters.';
     setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      showError('Please correct the highlighted fields.');
+      scrollToFeedback('error');
+    }
     return Object.keys(nextErrors).length === 0;
   };
 
   const navigateByRole = (role, sessionUser = {}) => {
-    const normalizedRole = (role || '').toLowerCase().replace(/[\s-]+/g, '_');
+    const email = String(sessionUser?.email || formData.emailOrPhone || '').trim().toLowerCase();
+    const normalizedRole = resolveUserRole({ email, role: role || sessionUser?.role || sessionUser?.userType });
+    const pending = getPendingApplication();
+    const pendingJobId = location.state?.jobId || pending?.jobId;
+    if (location.state?.intent === 'post-job') {
+      navigate('/explore-jobs', { replace: true, state: { openPostJob: true } });
+      return;
+    }
+    const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
+    const onboardingIncomplete = seekerRoles.includes(normalizedRole) && (
+      sessionUser.onboardingRoleSelected === false ||
+      sessionUser.has_cv === false ||
+      sessionUser.onboardingCvUploaded === false ||
+      sessionUser.onboardingProfileCompleted === false ||
+      (!sessionUser.onboardingCvUploaded && !localStorage.getItem('seekerResume')) ||
+      (!sessionUser.onboardingProfileCompleted && !localStorage.getItem('userProfile'))
+    );
+
+    if (pendingJobId && !onboardingIncomplete) {
+      continueApplicationFlow(navigate, { jobId: pendingJobId });
+      return;
+    }
+    if (!normalizedRole) {
+      if (!sessionUser.is_verified && !sessionUser.isVerified) {
+        navigate('/verify-otp', { state: { email: formData.emailOrPhone.trim() } });
+      } else {
+        navigate(getNextOnboardingStep());
+      }
+      return;
+    }
     if (['employer', 'company', 'recruiter'].includes(normalizedRole)) {
-      navigate('/employer-dashboard');
+      navigate('/employer/dashboard');
+    } else if (['admin', 'super_admin'].includes(normalizedRole)) {
+      navigate('/admin/dashboard');
     } else if (['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'].includes(normalizedRole)) {
-      const pending = getPendingApplication();
-      const pendingJobId = location.state?.jobId || pending?.jobId;
-      if (!role && pendingJobId) {
-        navigate(`/select-role?jobId=${encodeURIComponent(pendingJobId)}`);
-        return;
-      }
-      if ((location.state?.intent === 'apply' || pendingJobId) && pendingJobId) {
-        if (sessionUser.is_verified || sessionUser.isVerified) {
-          navigate(getNextApplicationStep(pendingJobId));
-          return;
-        }
-        setPendingApplication(pendingJobId, null, { currentStep: 'OTP_REQUIRED' });
-        navigate(`/verify-otp?jobId=${encodeURIComponent(pendingJobId)}`, { state: { email: formData.emailOrPhone.trim(), intent: 'apply', jobId: pendingJobId } });
-        return;
-      }
       navigate('/dashboard');
     } else {
       navigate('/');
     }
-  };
-
-  const createDemoSession = (email) => {
-    const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const isApplyFlow = location.state?.intent === 'apply' && location.state?.jobId;
-    const user = {
-      id: savedUser.id || `demo-${Date.now()}`,
-      email,
-      full_name: savedUser.full_name || email.split('@')[0],
-      role: savedUser.role || (isApplyFlow ? 'job_seeker' : 'job_seeker'),
-      is_verified: true,
-    };
-    localStorage.setItem('token', 'frontend-demo-token');
-    localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    setSession({ token: 'frontend-demo-token', user });
-    navigateByRole(user.role, user);
   };
 
   // Input Handlers
@@ -93,181 +96,70 @@ const Login = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
-    if (apiError) setApiError('');
   };
 
-  const handleOtpChange = (element, index) => {
-    if (isNaN(element.value)) return false;
-
-    const newOtp = [...formData.otp];
-    newOtp[index] = element.value;
-    setFormData((prev) => ({ ...prev, otp: newOtp }));
-
-    if (element.value !== '' && element.nextSibling) {
-      element.nextSibling.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (e, index) => {
-    if (e.key === 'Backspace' && !formData.otp[index] && index > 0) {
-      const previousInput = e.target.previousSibling;
-      if (previousInput) previousInput.focus();
-    }
-  };
 
   const handlePasswordLogin = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setApiError('');
 
     try {
-      const response = await fetch(`${API_URL.replace(/\/$/, '')}/login`, {
+      const res = await fetch(`${AUTH_API_URL}/login-init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.emailOrPhone.trim(),
-          password: formData.password
-        }),
+        body: JSON.stringify({ email: formData.emailOrPhone.trim().toLowerCase(), password: formData.password }),
       });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (response.ok) {
-        // Save Token / Session Handling
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-        if (data.user) {
-          localStorage.setItem('user', JSON.stringify(data.user));
-        }
-        setSession({ token: data.token, user: data.user });
-
- 
-        navigateByRole(data.user?.role || data.user?.userType);
-        navigateByRole(data.user?.role, data.user); 
-      } else {
-        setApiError(data.message || `Login failed (${response.status}). Please check credentials.`);
-      }
-    } catch (err) {
-      console.error('Login Error:', err);
-      createDemoSession(formData.emailOrPhone.trim());
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Request OTP for Login
-  const handleRequestOtp = async (e) => {
-    e.preventDefault();
-    if (!formData.emailOrPhone.trim()) {
-      setErrors({ emailOrPhone: 'Please enter your email address' });
-      return;
-    }
-
-    setIsLoading(true);
-    setApiError('');
-
-    try {
-      const res = await fetch(`${API_URL.replace(/\/$/, '')}/send-login-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.emailOrPhone.trim() }),
-      });
-
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok) {
-        setOtpStep(2);
-        setApiSuccess('OTP verification code sent to your email.');
-      } else {
-        setApiError(data.message || 'Failed to send OTP code.');
-      }
-    } catch (err) {
-      console.error('OTP Request Error:', err);
-      setOtpStep(2);
-      setApiSuccess('Backend unavailable. Demo OTP: 123456');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Submit OTP Verification for Login
-  const handleVerifyOtpLogin = async (e) => {
-    e.preventDefault();
-    const otpCode = formData.otp.join('');
-    if (otpCode.length < 6) {
-      setApiError('Please enter the complete 6-digit OTP code.');
-      return;
-    }
-
-    setIsLoading(true);
-    setApiError('');
-
-    try {
-      const res = await fetch(`${API_URL.replace(/\/$/, '')}/verify-login-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.emailOrPhone.trim(),
-          otp: otpCode
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok) {
-        if (data.token) localStorage.setItem('token', data.token);
-        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-        setSession({ token: data.token, user: data.user });
-
-        navigateByRole(data.user?.role, data.user);
-      } else {
-        setApiError(data.message || 'Invalid or expired OTP code.');
-      }
-    } catch (err) {
-      console.error('OTP Verify Error:', err);
-      if (otpCode === '123456') {
-        createDemoSession(formData.emailOrPhone.trim());
-      } else {
-        setApiError('Demo OTP is 123456.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setIsLoading(true);
-      setApiError('');
-      try {
-        const res = await fetch(`${API_URL.replace(/\/$/, '')}/google-login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: tokenResponse.access_token }),
+      if (res.status === 403 && data.requires_verification) {
+        navigate('/verify-otp', {
+          state: {
+            email: data.email || formData.emailOrPhone.trim().toLowerCase(),
+            message: data.message,
+            intent: location.state?.intent,
+          }
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.message || 'Google Login failed.');
-        if (data.token) localStorage.setItem('token', data.token);
-        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-        navigateByRole(data.user?.role);
-      } catch (error) {
-        setApiError(error.message || 'Google sign in failed. Please try again.');
-      } finally {
-        setIsLoading(false);
+        return;
       }
-    },
-    onError: () => setApiError('Google sign in failed. Please try again.'),
-  });
+
+      if (res.status === 429 || data.requires_otp || data.message?.toLowerCase().includes('login code was already sent')) {
+        navigate('/verify-otp', {
+          state: {
+            email: data.email || formData.emailOrPhone.trim().toLowerCase(),
+            message: data.message || 'A login code was already sent to your email. Please enter it below to continue.',
+            intent: location.state?.intent,
+          }
+        });
+        return;
+      }
+
+      if (!res.ok) throw new Error(data.message || data.error || 'Unable to send login OTP.');
+      if (data.requires_otp || data.success) {
+        navigate('/verify-otp', {
+          state: {
+            email: data.email || formData.emailOrPhone.trim().toLowerCase(),
+            message: `We sent a verification code to ${(data.email || formData.emailOrPhone).trim().toLowerCase()}.`,
+            intent: location.state?.intent,
+          }
+        });
+        showSuccess('Verification code sent successfully.');
+        return;
+      }
+    } catch (error) {
+      showError(error.message || 'Unable to sign in. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleFacebookLogin = () => {
     window.location.href = `${API_URL.replace(/\/$/, '')}/auth/facebook`;
   };
 
   return (
-    <div className="min-h-screen w-full bg-brand-soft bg-[radial-gradient(#d0e5f5_1px,transparent_1px)] [background-size:16px_16px] flex items-center justify-center p-3 sm:p-4 md:p-6 lg:p-8 font-sans overflow-x-hidden">
+    <div className="min-h-screen w-full bg-brand-soft bg-[radial-gradient(#d0e5f5_1px,transparent_1px)] bg-size-[16px_16px] flex items-center justify-center p-3 sm:p-4 md:p-6 lg:p-8 font-sans overflow-x-hidden">
 
       {/* Responsive Centered Card Container */}
       <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-white border border-slate-300 my-auto">
@@ -347,44 +239,20 @@ const Login = () => {
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Sign in to continue</h2>
           </div>
 
-          {/* Notifications */}
-
-          {apiError && (
-            <div className="mb-4 p-3.5 sm:p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
-              {apiError}
-            </div>
-          )}
-
-          {apiSuccess && (
-            <div className="mb-4 p-3.5 sm:p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
-              {apiSuccess}
-            </div>
-          )}
-
           {/* FORM 1: Password-Based Login */}
-          {loginMode === 'password' && (
-            <form onSubmit={handlePasswordLogin} noValidate className="space-y-4 sm:space-y-5">
+          <form onSubmit={handlePasswordLogin} noValidate className="space-y-4 sm:space-y-5">
 
               {/* EMAIL INPUT */}
               <div>
                 <label className="block text-sm sm:text-base font-bold text-slate-700 mb-2">
                   Email Address
                 </label>
-                <div className="relative group flex items-center">
-                  <Mail className="w-5 h-5 text-slate-400 group-focus-within:text-blue-600 absolute left-4 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" />
-                  <input
-                    type="email"
-                    name="emailOrPhone"
-                    value={formData.emailOrPhone}
-                    onChange={handleChange}
-                    placeholder="name@example.com"
-                    autoComplete="email"
-                    inputMode="email"
-                    className={`w-full text-sm sm:text-base pl-12 pr-4 py-3 sm:py-3.5 rounded-xl border bg-slate-50/50 text-slate-900 font-semibold placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all ${errors.emailOrPhone ? 'border-red-500 bg-red-50/20' : 'border-slate-300 hover:border-slate-400'
-                      }`}
-                  />
-                </div>
-                {errors.emailOrPhone && <p className="text-xs font-bold text-red-600 mt-1">{errors.emailOrPhone}</p>}
+                <EmailInputWithDomains
+                  name="emailOrPhone"
+                  value={formData.emailOrPhone}
+                  onChange={(value) => handleChange({ target: { name: 'emailOrPhone', value } })}
+                  error={errors.emailOrPhone}
+                />
               </div>
 
               {/* PASSWORD INPUT */}
@@ -438,81 +306,6 @@ const Login = () => {
                 )}
               </button>
             </form>
-          )}
-
-          {/* FORM 2: OTP-Based Login */}
-          {loginMode === 'otp' && (
-            <div>
-              {otpStep === 1 ? (
-                <form onSubmit={handleRequestOtp} className="space-y-4 sm:space-y-5">
-                  <div>
-                    <label className="block text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Registered Email Address
-                    </label>
-                    <div className="relative group flex items-center">
-                      <Mail className="w-5 h-5 text-slate-400 group-focus-within:text-blue-600 absolute left-4 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" />
-                      <input
-                        type="email"
-                        name="emailOrPhone"
-                        value={formData.emailOrPhone}
-                        onChange={handleChange}
-                        placeholder="name@example.com"
-                        className="w-full text-sm sm:text-base pl-12 pr-4 py-3 sm:py-3.5 rounded-xl border border-slate-300 bg-slate-50/50 text-slate-900 font-semibold focus:outline-none focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-3.5 sm:py-4 px-6 brand-bg hover:opacity-90 text-white rounded-xl font-extrabold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-3 transition shadow-lg shadow-[#56a2d8]/25 active:scale-[0.98] cursor-pointer disabled:opacity-70"
-                  >
-                    {isLoading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <span>Send Login OTP</span>
-                    )}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyOtpLogin} className="space-y-5">
-                  <button
-                    type="button"
-                    onClick={() => setOtpStep(1)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition mb-2"
-                  >
-                    <ArrowLeft className="w-4 h-4" /> Change Email
-                  </button>
-
-                  <div className="flex items-center justify-between gap-1.5 sm:gap-2 max-w-sm mx-auto">
-                    {formData.otp.map((digit, index) => (
-                      <input
-                        key={index}
-                        type="text"
-                        maxLength="1"
-                        value={digit}
-                        onChange={(e) => handleOtpChange(e.target, index)}
-                        onKeyDown={(e) => handleOtpKeyDown(e, index)}
-                        className="w-10 sm:w-12 h-12 sm:h-14 text-center font-bold text-lg sm:text-xl rounded-xl border border-slate-300 bg-slate-50 focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition outline-none"
-                      />
-                    ))}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-3.5 sm:py-4 px-6 brand-bg hover:opacity-90 text-white rounded-xl font-extrabold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-3 transition shadow-lg shadow-[#56a2d8]/25 active:scale-[0.98] cursor-pointer disabled:opacity-70"
-                  >
-                    {isLoading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <span>Verify & Login</span>
-                    )}
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
 
           {/* SOCIAL BUTTONS */}
           <div className="mt-8 border-t border-slate-200 pt-6">
@@ -522,15 +315,7 @@ const Login = () => {
               <div className="w-full border-t border-slate-200" />
             </div>
             <div className="flex flex-col gap-3">
-              <button type="button" onClick={handleGoogleLogin} className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs sm:text-sm rounded-xl border border-slate-300 hover:border-slate-400 shadow-xs transition-all duration-200 flex items-center justify-center gap-3 active:scale-[0.98] cursor-pointer">
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
+              <GoogleAuthButton label="Continue with Google" />
               <button type="button" onClick={handleFacebookLogin} className="w-full py-3 px-4 brand-bg hover:bg-[#f0f7fc] hover:text-[#2b73a4] text-white font-bold text-xs sm:text-sm rounded-xl border border-[#56a2d8] shadow-sm transition-all duration-200 flex items-center justify-center gap-3 active:scale-[0.98] cursor-pointer">
                 <span className="w-6 h-6 rounded-md bg-white text-[#56a2d8] flex items-center justify-center text-lg font-black">f</span>
                 <span>Continue with Facebook</span>

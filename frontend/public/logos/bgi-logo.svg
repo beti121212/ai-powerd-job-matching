@@ -1,0 +1,6 @@
+<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="45" cy="50" r="30" fill="#D32F2F"/>
+  <path d="M 30 35 L 45 50 L 35 65" fill="#FFD700" stroke="#FFD700" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M 60 35 L 45 50 L 55 65" fill="#FFD700" stroke="#FFD700" stroke-width="3" stroke-linejoin="round"/>
+  <text x="130" y="60" font-size="18" font-weight="bold" fill="#D32F2F" font-family="Arial, sans-serif">BGI</text>
+</svg>

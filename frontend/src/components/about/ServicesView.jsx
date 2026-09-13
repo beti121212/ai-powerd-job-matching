@@ -1,47 +1,13 @@
-import React from "react";
-import { BriefcaseBusiness, Code2, Database, Palette, Sparkles } from "lucide-react";
+import { Bell, BriefcaseBusiness, CalendarDays, CheckCircle2, FileSearch, Gauge, MessageSquareText, Search, Settings, ShieldCheck, Target, Users } from "lucide-react";
 
-const services = [
-  { title: "Web Development", description: "Responsive, modern web applications built with clean architecture and user-focused interfaces.", icon: Code2 },
-  { title: "UI/UX Design", description: "Thoughtful product design, intuitive flows, and visually consistent user experiences.", icon: Palette },
-  { title: "Database Development", description: "Schema design, query optimization, and reliable data structures for scalable applications.", icon: Database },
-  { title: "API Development", description: "Secure and maintainable APIs for authentication, business logic, and system integration.", icon: Sparkles },
-  { title: "AI Integration", description: "AI-assisted features and smart workflows to improve user productivity and decision-making.", icon: BriefcaseBusiness },
+const groups = [
+  { title: "For Job Seekers", icon: Users, color: "blue", description: "Tools to discover, understand, and apply for the right opportunities.", items: [[Target, "AI-Powered Job Matching", "Match skills, experience, and qualifications to suitable jobs."], [Gauge, "AI Match Score", "See how closely each job matches your profile."], [BriefcaseBusiness, "Smart Job Recommendations", "Receive personalized jobs based on your career goals."], [FileSearch, "CV / Resume Analysis", "Extract skills, experience, and qualifications from your CV."], [Search, "Advanced Job Search", "Filter by title, location, type, level, and salary."], [CheckCircle2, "Application Tracking", "Follow applications from pending to accepted or rejected."], [CalendarDays, "Interview Management", "Manage invitations, dates, links, and instructions."], [MessageSquareText, "Employer Messaging", "Communicate directly with employers."]] },
+  { title: "For Employers", icon: BriefcaseBusiness, color: "emerald", description: "Recruitment tools to publish roles and identify qualified candidates.", items: [[BriefcaseBusiness, "Job Posting & Management", "Create, publish, and manage open positions."], [Users, "Candidate Management", "Organize and review candidates for each vacancy."], [Target, "AI Candidate Matching", "Discover candidates who fit your requirements."], [Gauge, "Candidate Match Score", "Compare candidate fit with a percentage score."], [FileSearch, "Applicant CV Review", "Review resumes and candidate qualifications."], [CheckCircle2, "Application Management", "Track, shortlist, reject, and advance applications."], [CalendarDays, "Interview Scheduling", "Set dates, formats, links, and instructions."], [MessageSquareText, "Candidate Communication", "Share updates with applicants."]] },
+  { title: "For Admin", icon: ShieldCheck, color: "violet", description: "Management and monitoring tools for a trusted hiring marketplace.", items: [[Users, "User Management", "Manage accounts, roles, access, and activity."], [BriefcaseBusiness, "Employer Management", "Review and manage employer organizations."], [BriefcaseBusiness, "Job Management", "Monitor job posts and platform quality."], [CheckCircle2, "Application Monitoring", "Track recruitment activity and workflows."], [Target, "AI Matching Monitoring", "Review matching quality and recommendation signals."], [Gauge, "Analytics & Reports", "Understand jobs, applications, and platform outcomes."], [Bell, "Notification Management", "Manage important platform alerts."], [Settings, "Platform Settings", "Configure rules and operational preferences."]] },
 ];
 
+const colors = { blue: ["border-blue-100", "bg-blue-50 text-blue-700"], emerald: ["border-emerald-100", "bg-emerald-50 text-emerald-700"], violet: ["border-violet-100", "bg-violet-50 text-violet-700"] };
+
 export default function ServicesView({ onNavigate }) {
-  return (
-    <section className="space-y-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-          <BriefcaseBusiness className="h-3.5 w-3.5" />
-          Services
-        </div>
-
-        <h2 className="text-3xl font-bold text-slate-900">What I Offer</h2>
-      </div>
-
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {services.map(({ title, description, icon: Icon }) => (
-          <div key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <Icon className="h-5 w-5" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900">{title}</h3>
-            <p className="mt-3 text-sm leading-7 text-slate-600">{description}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-start">
-        <button
-          type="button"
-          onClick={() => onNavigate && onNavigate("contact")}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          Start a Project
-        </button>
-      </div>
-    </section>
-  );
+  return <section className="space-y-8"><header className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm sm:p-8"><span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-blue-700"><Target className="h-3.5 w-3.5" /> Our services</span><h1 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Smart tools to help you find the right opportunities.</h1><p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">AI-powered services for every step of the hiring journey, from CV analysis and job matching to recruitment management and platform administration.</p></header><div className="grid gap-6 xl:grid-cols-3">{groups.map(({ title, icon: RoleIcon, color, description, items }) => { const [border, icon] = colors[color]; return <article key={title} className={`rounded-2xl border bg-white p-5 shadow-sm ${border}`}><div className="flex items-start gap-3 border-b border-slate-100 pb-5"><div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${icon}`}><RoleIcon className="h-5 w-5" /></div><div><h2 className="text-xl font-black text-slate-900">{title}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{description}</p></div></div><div className="mt-5 space-y-3">{items.map(([Icon, name, detail]) => <div key={name} className="rounded-xl border border-slate-100 bg-slate-50 p-3"><div className="flex items-center gap-2"><Icon className={`h-4 w-4 ${icon.split(" ")[1]}`} /><h3 className="text-sm font-bold text-slate-800">{name}</h3></div><p className="mt-1.5 pl-6 text-xs leading-5 text-slate-500">{detail}</p></div>)}</div></article>; })}</div><footer className="rounded-2xl border border-blue-100 bg-white p-6 text-slate-900 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-6"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">One connected hiring journey</p><h2 className="mt-2 text-2xl font-black">Better matches. Better decisions.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Job seekers, employers, and administrators in one transparent AI-powered platform.</p></div><button type="button" onClick={() => onNavigate?.("contact")} className="mt-5 inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 sm:mt-0">Talk to us <MessageSquareText className="h-4 w-4" /></button></footer></section>;
 }

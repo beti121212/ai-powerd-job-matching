@@ -1,44 +1,60 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/about/Sidebar";
-import Header from "../components/about/Header";
 import AboutView from "../components/about/AboutView";
 
 const navItems = [
-  { id: "overview", label: "Overview" },
-  { id: "experience", label: "Experience" },
-  { id: "skills", label: "Skills" },
-  { id: "projects", label: "Projects" },
-  { id: "services", label: "Services" },
-  { id: "jobs", label: "Jobs" },
-  { id: "prompts", label: "Prompt Studio" },
-  { id: "contact", label: "Contact" },
+  { id: "about", label: "About", path: "/about" },
+  { id: "overview", label: "Overview", path: "/seeker-dashboard" },
+  { id: "matches", label: "My Matches", path: "/ai-matches" },
+  { id: "scores", label: "Match Scores", path: "/match-score-details" },
+  { id: "applications", label: "Applications", path: "/applications" },
+  { id: "profile", label: "My Profile", path: "/profile/me" },
+  { id: "jobs", label: "Explore Jobs", path: "/jobs" },
 ];
 
 export default function AboutPage({ initialSection = "services" }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(initialSection);
-  const [lang, setLang] = useState("en");
+  const [lang] = useState("en");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sectionPaths = Object.fromEntries(navItems.map((item) => [item.id, item.path]));
+  sectionPaths.register = "/register";
+  const routeSections = {
+    "/about": "about",
+    "/about/overview": "overview",
+    "/about/experience": "experience",
+    "/about/skills": "skills",
+    "/about/projects": "projects",
+    "/about/services": "services",
+    "/about/prompts": "prompts",
+    "/about/contact": "contact",
+    "/contact": "contact",
+    "/experience": "experience",
+    "/skills": "skills",
+    "/projects": "projects",
+    "/about/jobs": "jobs",
+    "/about/create-profile": "create-profile",
+    "/profile/create": "create-profile",
+  };
+  const activeSection = routeSections[location.pathname] || activeTab;
 
   const handleSectionChange = (section) => {
+    if (sectionPaths[section]) {
+      navigate(sectionPaths[section]);
+      setSidebarOpen(false);
+      return;
+    }
     setActiveTab(section);
     setSidebarOpen(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
-      <Header
-        currentSection={activeTab}
-        onSelectSection={handleSectionChange}
-        lang={lang}
-        onToggleLang={setLang}
-        accent="indigo"
-        onOpenMobileMenu={() => setSidebarOpen(true)}
-        onOpenResumeModal={() => {}}
-      />
-
-      <div className="w-full pt-6 pb-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-0">
-          <div className="flex items-start gap-6">
+    <div className="min-h-screen w-full bg-slate-50 text-slate-900">
+      <div className="min-h-screen w-full bg-slate-50 pb-12">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex items-start gap-4 lg:gap-6">
             {sidebarOpen && (
               <button
                 type="button"
@@ -48,10 +64,10 @@ export default function AboutPage({ initialSection = "services" }) {
               />
             )}
 
-            <aside className={`${sidebarOpen ? "fixed left-4 top-20 z-50 block w-72" : "hidden"} shrink-0 self-start md:sticky md:top-24 md:block md:w-64`}>
+            <aside className={`${sidebarOpen ? "fixed inset-0 z-50 block w-full" : "hidden"} about-scrollbar shrink-0 self-start md:sticky md:top-20 md:block md:h-[calc(100vh-5rem)] md:overflow-y-auto md:w-72`}>
               <Sidebar
                 navItems={navItems}
-                currentSection={activeTab}
+                currentSection={activeSection}
                 setCurrentSection={handleSectionChange}
                 language={lang}
                 sidebarOpen={sidebarOpen}
@@ -59,8 +75,8 @@ export default function AboutPage({ initialSection = "services" }) {
               />
             </aside>
 
-            <main className="min-w-0 flex-1">
-              <AboutView activeTab={activeTab} onNavigate={setActiveTab} lang={lang} />
+            <main className="about-scrollbar min-w-0 flex-1 overflow-y-auto bg-slate-50 md:h-[calc(100vh-5rem)] md:p-2">
+              <AboutView activeTab={activeSection} onNavigate={handleSectionChange} lang={lang} />
             </main>
           </div>
         </div>

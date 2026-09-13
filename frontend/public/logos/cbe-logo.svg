@@ -1,0 +1,5 @@
+<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="80" fill="#f0f9ff"/>
+  <rect width="200" height="80" fill="none" stroke="#1a5c33" stroke-width="2"/>
+  <text x="100" y="45" font-size="24" font-weight="bold" fill="#1a5c33" text-anchor="middle" font-family="Arial, sans-serif">CBE</text>
+</svg>

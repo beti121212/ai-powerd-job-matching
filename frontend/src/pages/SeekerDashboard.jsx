@@ -3,17 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, User, Target, Search, Bookmark,
   ClipboardList, Bell, Settings, LogOut, Sparkles, CheckCircle2,
-  AlertTriangle, MapPin, Briefcase, DollarSign, Send, Globe, Menu, X, Lightbulb
+  AlertTriangle, MapPin, Briefcase, DollarSign, Send, Globe, Lightbulb, Brain
 } from 'lucide-react';
-import heroBannerImg from '../assets/hero.png';
 import { useAuth } from '../context/AuthContext';
 import useSeekerDashboard from '../hooks/useSeekerDashboard';
+import LogoutFlowModals from '../components/LogoutFlowModals';
 
 // የተስተካከለ Import Path (ከ pages ፎልደር ወጥቶ ወደ components/seeker ይሄዳል)
 import CvAnalysisPage from '../components/seeker/CvAnalysis';
 
 export default function SeekerDashboard() {
-  const { user: sessionUser, logout } = useAuth();
+  const { user: sessionUser, token, setSession, logout } = useAuth();
   const {
     profile,
     stats,
@@ -26,7 +26,8 @@ export default function SeekerDashboard() {
   const [language, setLanguage] = useState('EN'); // 'EN' or 'AM'
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(() => location.state?.activeTab || 'dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [logoutSession, setLogoutSession] = useState(null);
   const [aiMessage, setAiMessage] = useState('');
   const navigate = useNavigate();
 
@@ -34,8 +35,8 @@ export default function SeekerDashboard() {
   const userName = typeof user.name === 'string' && user.name.trim() ? user.name : 'Job Seeker';
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    setLogoutSession({ token, user: sessionUser });
+    setLogoutOpen(true);
   };
 
   const [chatHistory, setChatHistory] = useState([
@@ -73,81 +74,12 @@ export default function SeekerDashboard() {
   return (
     <div className="seeker-dashboard min-h-screen bg-slate-50 text-slate-800 flex font-sans">
 
-      {/* SIDEBAR NAVIGATION */}
-      <aside className={`dashboard-sidebar fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="dashboard-sidebar-header p-6 flex items-center justify-between border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl overflow-hidden border border-[var(--brand-border)] shadow-sm shadow-blue-500/10 shrink-0">
-              <img src={heroBannerImg} alt="Job Matching" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <span className="text-lg font-black tracking-tight text-slate-900 leading-none block lowercase">
-                job <span className="brand-text">matching</span>
-              </span>
-              <span className="text-[10px] font-extrabold text-slate-400 tracking-wider uppercase">AI Platform</span>
-            </div>
-          </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Navigation Menu */}
-        <nav className="p-4 space-y-1.5 overflow-y-auto max-h-[calc(100vh-80px)] text-sm font-medium">
-          {[{
-            id: 'dashboard', path: '/dashboard', label: language === 'EN' ? 'Dashboard' : 'ዳሽቦርድ', icon: LayoutDashboard
-          }, {
-            id: 'profile', path: '/profile', label: language === 'EN' ? 'My Profile' : 'የግል መረጃ', icon: User
-          }, {
-            id: 'matches', path: '/ai-matches', label: language === 'EN' ? 'AI Job Matches' : 'የተጣጣሙ ስራዎች', icon: Target
-          }, {
-            id: 'explore', path: '/explore-jobs', label: language === 'EN' ? 'Explore Jobs' : 'ስራዎችን ፈልግ', icon: Search
-          }, {
-            id: 'saved', path: '/saved-jobs', label: language === 'EN' ? 'Saved Jobs' : 'የተቀመጡ ስራዎች', icon: Bookmark
-          }, {
-            id: 'applications', path: '/applications', label: language === 'EN' ? 'My Applications' : 'የማመልከቻዎች ሁኔታ', icon: ClipboardList
-          }, {
-            id: 'notifications', path: '/notifications', label: language === 'EN' ? 'Notifications' : 'ማሳወቂያዎች', icon: Bell
-          }].map(item => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); navigate(item.path); }}
-                className={`dashboard-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
-                  ? 'dashboard-active text-white shadow-lg font-semibold'
-                  : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'
-                  }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-
-          <div className="pt-6 mt-6 border-t border-slate-800 space-y-1">
-            <button onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
-              <Settings className="w-5 h-5" />
-              <span>{language === 'EN' ? 'Settings' : 'ማስተካከያዎች'}</span>
-            </button>
-            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition">
-              <LogOut className="w-5 h-5" />
-              <span>{language === 'EN' ? 'Logout' : 'ውጣ'}</span>
-            </button>
-          </div>
-        </nav>
-      </aside>
-
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
 
         {/* TOP HEADER */}
         <header className="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-4 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 rounded-lg bg-slate-100 text-slate-600">
-              <Menu className="w-6 h-6" />
-            </button>
             <div className="relative hidden md:block w-72">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -474,6 +406,7 @@ export default function SeekerDashboard() {
         </main>
       </div>
 
+      {logoutOpen && <LogoutFlowModals user={logoutSession?.user} token={logoutSession?.token} logout={logout} setSession={setSession} navigate={navigate} onClose={() => setLogoutOpen(false)} />}
     </div>
   );
 }

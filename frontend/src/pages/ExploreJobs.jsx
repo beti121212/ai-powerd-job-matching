@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
   CheckCircle2,
@@ -26,6 +26,7 @@ import {
   Mail,
   KeyRound,
   ArrowRight,
+  ArrowLeft,
 } from "lucide-react";
 import { setPendingApplication } from "../utils/applicationFlow";
 import api from "../services/api";
@@ -185,7 +186,12 @@ const initialJobs = [
     aiMatchScore: 98,
     matchReason:
       "Direct match for fleet supervision, dispatch tracking, and administrative workflows.",
-    tags: ["Fleet Management", "Logistics Dispatch", "Office Administration", "Reporting"],
+    tags: [
+      "Fleet Management",
+      "Logistics Dispatch",
+      "Office Administration",
+      "Reporting",
+    ],
     shortDescription:
       "Are you an organized multi-tasker with a knack for keeping fleet operations, administrative workflows, and driver records running seamlessly? We are looking for an Admin Supervisor to lead and streamline our transport administration function!",
     fullDescription:
@@ -234,7 +240,14 @@ const initialJobs = [
     aiMatchScore: 96,
     matchReason:
       "High relevance for React, Node.js, RESTful microservices, and PostgreSQL systems.",
-    tags: ["React", "Node.js", "TypeScript", "Tailwind CSS", "PostgreSQL", "Docker"],
+    tags: [
+      "React",
+      "Node.js",
+      "TypeScript",
+      "Tailwind CSS",
+      "PostgreSQL",
+      "Docker",
+    ],
     shortDescription:
       "Design and deploy scalable next-generation digital payment rails and modern web interfaces. Collaborate with engineering leadership to deliver mission-critical FinTech products.",
     fullDescription:
@@ -284,7 +297,14 @@ const initialJobs = [
     aiMatchScore: 95,
     matchReason:
       "Strong fit for Python, Transformer architectures, and vector embeddings.",
-    tags: ["Python", "Generative AI", "PyTorch", "Transformers", "Vector DB", "FastAPI"],
+    tags: [
+      "Python",
+      "Generative AI",
+      "PyTorch",
+      "Transformers",
+      "Vector DB",
+      "FastAPI",
+    ],
     shortDescription:
       "Lead experimental research in semantic job parsing and real-time candidate matchmaking models at continental scale.",
     fullDescription:
@@ -334,7 +354,13 @@ const initialJobs = [
     aiMatchScore: 91,
     matchReason:
       "High relevance in agricultural logistics and farm-to-market dispatch.",
-    tags: ["Supply Chain", "Logistics", "Cold Chain", "Inventory Control", "Agribusiness"],
+    tags: [
+      "Supply Chain",
+      "Logistics",
+      "Cold Chain",
+      "Inventory Control",
+      "Agribusiness",
+    ],
     shortDescription:
       "Supervise daily distribution schedules, digital traceability platforms, and cooperative vendor operations across Southern Ethiopia.",
     fullDescription:
@@ -383,7 +409,12 @@ const initialJobs = [
     aiMatchScore: 94,
     matchReason:
       "Deep regulatory expertise in Ethiopian banking directives and risk modeling.",
-    tags: ["Risk Assessment", "IFRS Standards", "Financial Modeling", "Corporate Compliance"],
+    tags: [
+      "Risk Assessment",
+      "IFRS Standards",
+      "Financial Modeling",
+      "Corporate Compliance",
+    ],
     shortDescription:
       "Guide compliance reviews, capital adequacy modeling, and institutional audit workflows for enterprise clients.",
     fullDescription:
@@ -432,7 +463,13 @@ const initialJobs = [
     aiMatchScore: 89,
     matchReason:
       "Laboratory diagnostics protocols and patient data management skills.",
-    tags: ["Clinical Lab", "Diagnostics", "Patient Care", "Hygiene Standards", "Healthcare"],
+    tags: [
+      "Clinical Lab",
+      "Diagnostics",
+      "Patient Care",
+      "Hygiene Standards",
+      "Healthcare",
+    ],
     shortDescription:
       "Support daily clinical testing, automated diagnostic equipment maintenance, and laboratory quality control.",
     fullDescription:
@@ -460,7 +497,13 @@ const initialJobs = [
 // =========================================================================
 // 3. AUTH MODAL (LOGIN / SIGN UP POPUP)
 // =========================================================================
-function AuthModal({ isOpen, initialMode = "login", targetJob, onClose, onSuccess }) {
+function AuthModal({
+  isOpen,
+  initialMode = "login",
+  targetJob,
+  onClose,
+  onSuccess,
+}) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -496,7 +539,11 @@ function AuthModal({ isOpen, initialMode = "login", targetJob, onClose, onSucces
         {/* Modal Header */}
         <div className="mb-6">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F0F7FC] border border-[#D0E5F5] text-[#2B73A4] mb-3.5">
-            {mode === "login" ? <LogIn className="h-6 w-6" /> : <UserPlus className="h-6 w-6" />}
+            {mode === "login" ? (
+              <LogIn className="h-6 w-6" />
+            ) : (
+              <UserPlus className="h-6 w-6" />
+            )}
           </div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">
             {mode === "login" ? "Login to Apply" : "Create Candidate Account"}
@@ -513,16 +560,22 @@ function AuthModal({ isOpen, initialMode = "login", targetJob, onClose, onSucces
           <button
             type="button"
             onClick={() => setMode("login")}
-            className={`flex-1 py-2 rounded-lg text-sm font-extrabold transition cursor-pointer ${mode === "login" ? "bg-white text-[#2B73A4] shadow-xs" : "text-slate-600 hover:text-slate-900"
-              }`}
+            className={`flex-1 py-2 rounded-lg text-sm font-extrabold transition cursor-pointer ${
+              mode === "login"
+                ? "bg-white text-[#2B73A4] shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
           >
             Log In
           </button>
           <button
             type="button"
             onClick={() => setMode("signup")}
-            className={`flex-1 py-2 rounded-lg text-sm font-extrabold transition cursor-pointer ${mode === "signup" ? "bg-white text-[#2B73A4] shadow-xs" : "text-slate-600 hover:text-slate-900"
-              }`}
+            className={`flex-1 py-2 rounded-lg text-sm font-extrabold transition cursor-pointer ${
+              mode === "signup"
+                ? "bg-white text-[#2B73A4] shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
           >
             Sign Up
           </button>
@@ -587,7 +640,9 @@ function AuthModal({ isOpen, initialMode = "login", targetJob, onClose, onSucces
             type="submit"
             className="w-full py-3.5 rounded-xl bg-[#56A2D8] hover:bg-[#2B73A4] text-white font-black text-base shadow-md hover:shadow-lg transition cursor-pointer flex items-center justify-center gap-2 mt-2"
           >
-            <span>{mode === "login" ? "Sign In & Apply" : "Create Account & Apply"}</span>
+            <span>
+              {mode === "login" ? "Sign In & Apply" : "Create Account & Apply"}
+            </span>
             <ArrowRight className="h-4.5 w-4.5" />
           </button>
         </form>
@@ -605,11 +660,11 @@ function CleanJobCard({ job, saved, onToggleSave, onShare, onViewDetails }) {
   return (
     <div
       onClick={() => onViewDetails(job)}
-      className="job-listing-card group relative rounded-2xl border border-slate-200/90 bg-white p-7 sm:p-9 shadow-xs hover:-translate-y-1 hover:border-[#56A2D8] hover:shadow-xl hover:shadow-[#56A2D8]/15 transition-all duration-200 ease-out text-left cursor-pointer"
+      className="job-listing-card group relative rounded-2xl border border-slate-200/90 bg-white p-7 sm:p-9 shadow-xs hover:-translate-y-2 hover:border-[#56A2D8] hover:bg-gradient-to-br hover:from-[#f0f7fc] hover:to-[#e8f1f8] hover:shadow-xl hover:shadow-[#56A2D8]/20 transition-all duration-300 ease-out text-left cursor-pointer"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 group-hover:text-[#2B73A4] transition-colors leading-snug tracking-tight">
+          <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 group-hover:text-[#56A2D8] transition-colors duration-300 leading-snug tracking-tight">
             {job.title}
           </h3>
 
@@ -631,29 +686,32 @@ function CleanJobCard({ job, saved, onToggleSave, onShare, onViewDetails }) {
           <button
             type="button"
             onClick={() => onShare(job)}
-            className="p-2.5 rounded-xl text-slate-400 hover:text-[#2B73A4] hover:bg-[#F0F7FC] transition cursor-pointer"
+            className="p-2.5 rounded-xl text-slate-400 hover:text-[#56A2D8] hover:bg-[#F0F7FC] transition-all duration-200 cursor-pointer group/share"
             title="Share Job"
           >
-            <Share2 className="h-5 w-5" />
+            <Share2 className="h-5 w-5 group-hover/share:scale-110 transition-transform" />
           </button>
 
           <button
             type="button"
             onClick={() => onToggleSave(job.id)}
-            className={`p-2.5 rounded-xl transition cursor-pointer ${saved
-              ? "text-[#2B73A4] bg-[#F0F7FC] border border-[#D0E5F5] hover:bg-white"
-              : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-              }`}
+            className={`p-2.5 rounded-xl transition-all duration-200 cursor-pointer group/bookmark ${
+              saved
+                ? "text-[#56A2D8] bg-[#F0F7FC] border border-[#D0E5F5] hover:bg-[#E8F1F8]"
+                : "text-slate-400 hover:text-[#56A2D8] hover:bg-[#F0F7FC] border border-transparent"
+            }`}
             title={saved ? "Remove bookmark" : "Bookmark Job"}
           >
-            <Bookmark className={`h-5 w-5 ${saved ? "fill-current" : ""}`} />
+            <Bookmark className={`h-5 w-5 group-hover/bookmark:scale-110 transition-transform ${saved ? "fill-current" : ""}`} />
           </button>
         </div>
       </div>
 
       <div className="mt-4">
-        <p className="text-base sm:text-lg leading-relaxed font-medium text-slate-800">
-          {showFullShort ? job.shortDescription : `${job.shortDescription.slice(0, 185)}...`}
+        <p className="text-base sm:text-lg leading-relaxed text-slate-700 font-normal">
+          {showFullShort
+            ? job.shortDescription
+            : `${job.shortDescription.slice(0, 185)}...`}
         </p>
         <button
           type="button"
@@ -661,7 +719,7 @@ function CleanJobCard({ job, saved, onToggleSave, onShare, onViewDetails }) {
             e.stopPropagation();
             setShowFullShort(!showFullShort);
           }}
-          className="mt-2.5 text-base font-bold text-[#2B73A4] hover:underline cursor-pointer inline-block"
+          className="mt-2.5 text-base font-bold text-[#56A2D8] hover:text-[#2B73A4] hover:underline transition-colors duration-200 cursor-pointer inline-block"
         >
           {showFullShort ? "Show Less" : "Show More"}
         </button>
@@ -670,20 +728,30 @@ function CleanJobCard({ job, saved, onToggleSave, onShare, onViewDetails }) {
       <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
         <div className="flex items-center gap-6 sm:gap-10 lg:gap-14 text-sm flex-wrap">
           <div>
-            <p className="text-base font-extrabold text-slate-900 sm:text-lg">{job.experienceLevel}</p>
-            <p className="mt-0.5 text-xs font-bold text-slate-700 sm:text-sm">Experience Level</p>
+            <p className="font-bold text-slate-900 text-base sm:text-lg">
+              {job.experienceLevel}
+            </p>
+            <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-0.5">
+              Experience Level
+            </p>
           </div>
 
           <div>
             <p className="text-base font-extrabold text-slate-900 sm:text-lg">
               {job.workplace} – {job.type}
             </p>
-            <p className="mt-0.5 text-xs font-bold text-slate-700 sm:text-sm">Job Type</p>
+            <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-0.5">
+              Job Type
+            </p>
           </div>
 
           <div>
-            <p className="text-base font-extrabold text-slate-900 sm:text-lg">{job.deadline}</p>
-            <p className="mt-0.5 text-xs font-bold text-slate-700 sm:text-sm">Deadline</p>
+            <p className="font-bold text-slate-900 text-base sm:text-lg">
+              {job.deadline}
+            </p>
+            <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-0.5">
+              Deadline
+            </p>
           </div>
         </div>
 
@@ -707,7 +775,14 @@ function CleanJobCard({ job, saved, onToggleSave, onShare, onViewDetails }) {
 // ============================================================================
 // 5. "VIEW DETAILS" MODAL (OPENS LOGIN / SIGNUP ON CLICK)
 // ============================================================================
-function JobDetailModal({ job, onClose, onApply, onShare, onToggleSave, isSaved }) {
+function JobDetailModal({
+  job,
+  onClose,
+  onApply,
+  onShare,
+  onToggleSave,
+  isSaved,
+}) {
   if (!job) return null;
 
   return (
@@ -740,13 +815,16 @@ function JobDetailModal({ job, onClose, onApply, onShare, onToggleSave, isSaved 
             <button
               type="button"
               onClick={() => onToggleSave(job.id)}
-              className={`p-2.5 rounded-xl border transition cursor-pointer shadow-2xs ${isSaved
-                ? "border-[#56A2D8] bg-[#56A2D8] text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:text-[#2B73A4]"
-                }`}
+              className={`p-2.5 rounded-xl border transition cursor-pointer shadow-2xs ${
+                isSaved
+                  ? "border-[#56A2D8] bg-[#56A2D8] text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:text-[#2B73A4]"
+              }`}
               title={isSaved ? "Saved" : "Save Job"}
             >
-              <Bookmark className={`h-5 w-5 ${isSaved ? "fill-current" : ""}`} />
+              <Bookmark
+                className={`h-5 w-5 ${isSaved ? "fill-current" : ""}`}
+              />
             </button>
 
             <button
@@ -919,19 +997,33 @@ function JobDetailModal({ job, onClose, onApply, onShare, onToggleSave, isSaved 
                   </span>
                   <div className="space-y-2.5 text-sm sm:text-base">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-700">Sector:</span>
-                      <span className="font-bold text-slate-900">{job.sector}</span>
+                      <span className="text-slate-600 font-medium">
+                        Sector:
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {job.sector}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-700">Vacancies:</span>
-                      <span className="font-bold text-slate-900">{job.vacancies || 1} Position</span>
+                      <span className="text-slate-600 font-medium">
+                        Vacancies:
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {job.vacancies || 1} Position
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-700">Education:</span>
-                      <span className="font-bold text-slate-900">{job.education}</span>
+                      <span className="text-slate-600 font-medium">
+                        Education:
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {job.education}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-slate-700">Deadline:</span>
+                      <span className="text-slate-600 font-medium">
+                        Deadline:
+                      </span>
                       <span className="font-black text-[#2B73A4] bg-[#F0F7FC] px-2.5 py-1 rounded-lg border border-[#D0E5F5]">
                         {job.deadline}
                       </span>
@@ -979,11 +1071,17 @@ function JobDetailModal({ job, onClose, onApply, onShare, onToggleSave, isSaved 
 function JobPostModal({ isOpen, onClose, onJobCreated }) {
   const [title, setTitle] = useState("");
   const [company, setCompany] = useState("");
-  const [sector, setSector] = useState(SECTORS[1] || "Software Design & Development");
-  const [locationValue, setLocationValue] = useState(LOCATIONS[1] || "Addis Ababa");
+  const [sector, setSector] = useState(
+    SECTORS[1] || "Software Design & Development",
+  );
+  const [locationValue, setLocationValue] = useState(
+    LOCATIONS[1] || "Addis Ababa",
+  );
   const [workplace, setWorkplace] = useState("On-site");
   const [jobType, setJobType] = useState("Full-time");
-  const [experienceLevel, setExperienceLevel] = useState("Intermediate (3-5 yrs)");
+  const [experienceLevel, setExperienceLevel] = useState(
+    "Intermediate (3-5 yrs)",
+  );
   const [education, setEducation] = useState("Bachelor’s Degree");
   const [gender, setGender] = useState("Any");
   const [vacancies, setVacancies] = useState(1);
@@ -1003,57 +1101,61 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
     "Strong communication and problem-solving skills",
   ]);
   const [tags, setTags] = useState("Leadership, Strategy, Communication");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !company) return;
 
-    const salaryNumeric = parseInt(salaryMin.replace(/[^0-9]/g, ""), 10) || 45000;
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    const salaryNumeric =
+      parseInt(salaryMin.replace(/[^0-9]/g, ""), 10) || 45000;
     const salaryFormatted = `${currency} ${salaryMin} - ${salaryMax} / mo`;
-    const cleanTags = tags.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+    const cleanTags = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
 
-    const newJob = {
-      id: Date.now(),
-      title,
-      company,
-      companyAbout: `${company} is an active employer seeking top talent to drive organizational excellence.`,
-      location: `${locationValue}, Ethiopia`,
-      locationValue,
-      type: jobType,
-      workplace,
-      experienceLevel,
-      education,
-      gender,
-      vacancies: Number(vacancies) || 1,
-      deadline,
-      deadlineDate: "2026-09-30",
-      priorityRank: 1,
-      postedAt: "Just now",
-      postedHoursAgo: 0,
-      sector,
-      currency,
-      salary: salaryFormatted,
-      salaryValue: salaryNumeric,
-      aiMatchScore: 96,
-      matchReason: `Newly posted opportunity matching ${sector} and ${experienceLevel} qualifications.`,
-      tags: cleanTags.length > 0 ? cleanTags : [sector, jobType, workplace],
-      shortDescription:
-        shortDescription ||
-        `Exciting opportunity for a ${title} to join ${company}. Lead operational tasks and contribute to team growth.`,
-      fullDescription: `We are seeking a dedicated ${title} to join ${company}. In this role, you will collaborate with key departments and execute core deliverables with high quality.`,
-      responsibilities: responsibilities.filter((r) => r.trim().length > 0),
-      requirements: requirements.filter((r) => r.trim().length > 0),
-      benefits: [
-        "Competitive Compensation Package",
-        "Health & Life Insurance",
-        "Performance Bonus & Career Growth",
-      ],
-    };
+    const typeMap = { "Full-time": "full-time", "Part-time": "part-time", Freelance: "freelance", Contractual: "contract", Volunteer: "contract", "Intern (Paid)": "internship", "Intern (Unpaid)": "internship" };
+    const experienceMap = { "Entry level (0-1 yrs)": "entry-level", "Junior (1-3 yrs)": "mid-level", "Intermediate (3-5 yrs)": "mid-level", "Senior (5+ yrs)": "senior-level", "Expert (8+ yrs)": "executive" };
+    const educationMap = { "Not Required": "any", "Primary School": "high-school", "Middle School": "high-school", "High School": "high-school", Certificate: "associate", Tvet: "associate", Diploma: "associate", "Bachelor’s Degree": "bachelor", "Postgraduate Diploma": "master", "Master’s Degree": "master", Phd: "phd" };
+    const genderMap = { Any: "any", Male: "male", Female: "female" };
 
-    onJobCreated(newJob);
-    onClose();
+    try {
+      const { data } = await api.post("/jobs", {
+        title,
+        company,
+        description: shortDescription || `We are seeking a dedicated ${title} to join ${company}.`,
+        category: sector,
+        sector,
+        jobType: typeMap[jobType] || "full-time",
+        experienceLevel: experienceMap[experienceLevel] || "mid-level",
+        location: locationValue,
+        workMode: workplace.toLowerCase(),
+        gender: genderMap[gender] || "any",
+        education: educationMap[education] || "any",
+        salaryMin: salaryNumeric,
+        salaryMax: parseInt(salaryMax.replace(/[^0-9]/g, ""), 10) || salaryNumeric,
+        currency,
+        applicationDeadline: "2026-09-30",
+        requiredSkills: cleanTags.join(", "),
+        responsibilities: responsibilities.filter((r) => r.trim().length > 0),
+        requirements: requirements.filter((r) => r.trim().length > 0),
+        vacancies: Number(vacancies) || 1,
+      });
+
+      onJobCreated(data.job);
+      onClose();
+    } catch (error) {
+      setSubmitError(error.response?.data?.message || "Unable to submit the job for admin approval.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1072,7 +1174,8 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
                 Post a New Job
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 font-semibold">
-                Publish a vacancy to connect with thousands of qualified professionals
+                Publish a vacancy to connect with thousands of qualified
+                professionals
               </p>
             </div>
           </div>
@@ -1085,14 +1188,19 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-6 md:p-8 space-y-6 bg-[#F8FAFC]">
+        <form
+          onSubmit={handleSubmit}
+          className="overflow-y-auto flex-1 p-6 md:p-8 space-y-6 bg-[#F8FAFC]"
+        >
           <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
             <h3 className="text-base font-black text-slate-900 border-b border-slate-100 pb-2.5">
               Core Job Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Job Title *</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Job Title *
+                </label>
                 <input
                   type="text"
                   required
@@ -1103,7 +1211,9 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Company *</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Company *
+                </label>
                 <input
                   type="text"
                   required
@@ -1114,27 +1224,37 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Sector</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Sector
+                </label>
                 <select
                   value={sector}
                   onChange={(e) => setSector(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-900 outline-none"
                 >
                   {SECTORS.filter((s) => s !== "Select sector").map((sec) => (
-                    <option key={sec} value={sec}>{sec}</option>
+                    <option key={sec} value={sec}>
+                      {sec}
+                    </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Location</label>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Location
+                </label>
                 <select
                   value={locationValue}
                   onChange={(e) => setLocationValue(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-900 outline-none"
                 >
-                  {LOCATIONS.filter((l) => l !== "Select location").map((loc) => (
-                    <option key={loc} value={loc}>{loc}</option>
-                  ))}
+                  {LOCATIONS.filter((l) => l !== "Select location").map(
+                    (loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ),
+                  )}
                 </select>
               </div>
             </div>
@@ -1145,7 +1265,9 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
               Job Description
             </h3>
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Summary</label>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Summary
+              </label>
               <textarea
                 rows={3}
                 value={shortDescription}
@@ -1155,7 +1277,9 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Skills (Comma-separated)</label>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Skills (Comma-separated)
+              </label>
               <input
                 type="text"
                 value={tags}
@@ -1167,19 +1291,22 @@ function JobPostModal({ isOpen, onClose, onJobCreated }) {
           </div>
 
           <div className="pt-4 sticky bottom-0 bg-white p-4 border-t border-slate-200 rounded-2xl flex items-center justify-end gap-3 shadow-lg">
+            {submitError && <p className="mr-auto max-w-sm text-sm font-semibold text-rose-600" role="alert">{submitError}</p>}
             <button
               type="button"
               onClick={onClose}
+              disabled={isSubmitting}
               className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm hover:bg-slate-100 cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="px-8 py-3 rounded-xl bg-[#56A2D8] hover:bg-[#2B73A4] text-white font-black text-sm shadow-md hover:shadow-lg transition cursor-pointer flex items-center gap-2"
             >
               <Send className="h-4 w-4" />
-              <span>Publish Job Posting</span>
+              <span>{isSubmitting ? "Submitting..." : "Submit for Approval"}</span>
             </button>
           </div>
         </form>
@@ -1225,7 +1352,10 @@ function GoogleAiAssistantModal({ isOpen, onClose, contextJobs }) {
       id: `user-${Date.now()}`,
       role: "user",
       text: textToSend.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -1239,7 +1369,10 @@ function GoogleAiAssistantModal({ isOpen, onClose, contextJobs }) {
         id: `ai-${Date.now()}`,
         role: "assistant",
         text: replyText,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
 
       setMessages((prev) => [...prev, assistantReply]);
@@ -1260,7 +1393,9 @@ function GoogleAiAssistantModal({ isOpen, onClose, contextJobs }) {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-black text-white">Google AI Assistant</h2>
+                <h2 className="text-lg sm:text-xl font-black text-white">
+                  Google AI Assistant
+                </h2>
                 <span className="px-2 py-0.5 rounded-md bg-blue-500/30 text-[10px] font-extrabold uppercase text-sky-200">
                   Gemini 3.7
                 </span>
@@ -1287,21 +1422,29 @@ function GoogleAiAssistantModal({ isOpen, onClose, contextJobs }) {
               className={`flex gap-3.5 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
             >
               <div
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-xs font-black shadow-xs ${msg.role === "user"
-                  ? "brand-bg text-white"
-                  : "bg-gradient-to-tr from-sky-500 to-indigo-600 text-white"
-                  }`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-xs font-black shadow-xs ${
+                  msg.role === "user"
+                    ? "brand-bg text-white"
+                    : "bg-gradient-to-tr from-sky-500 to-indigo-600 text-white"
+                }`}
               >
-                {msg.role === "user" ? <User className="h-4.5 w-4.5" /> : <Bot className="h-4.5 w-4.5" />}
+                {msg.role === "user" ? (
+                  <User className="h-4.5 w-4.5" />
+                ) : (
+                  <Bot className="h-4.5 w-4.5" />
+                )}
               </div>
 
               <div
-                className={`max-w-[84%] rounded-2xl p-4 sm:p-5 text-sm sm:text-base leading-relaxed ${msg.role === "user"
-                  ? "brand-bg text-white font-semibold rounded-tr-xs"
-                  : "bg-white text-slate-800 border border-slate-200/90 shadow-2xs rounded-tl-xs"
-                  }`}
+                className={`max-w-[84%] rounded-2xl p-4 sm:p-5 text-sm sm:text-base leading-relaxed ${
+                  msg.role === "user"
+                    ? "brand-bg text-white font-semibold rounded-tr-xs"
+                    : "bg-white text-slate-800 border border-slate-200/90 shadow-2xs rounded-tl-xs"
+                }`}
               >
-                <div className="whitespace-pre-wrap font-normal">{msg.text}</div>
+                <div className="whitespace-pre-wrap font-normal">
+                  {msg.text}
+                </div>
 
                 {msg.suggestions && msg.suggestions.length > 0 && (
                   <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
@@ -1371,48 +1514,94 @@ function GoogleAiAssistantModal({ isOpen, onClose, contextJobs }) {
 // =========================================================================
 export default function ExploreJobsPage() {
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState(() => {
-    try {
-      const employerJobs = JSON.parse(localStorage.getItem('employerJobs') || '[]');
-      const publishedJobs = employerJobs
-        .filter((job) => job.status === 'published')
-        .map((job) => ({
-          ...job,
-          company: job.company || 'Employer company',
-          location: job.location || job.locationValue || 'Location not specified',
-          locationValue: job.locationValue || job.location || '',
-          type: job.type || job.job_type || 'Full-time',
-          workplace: job.workplace || job.work_mode || 'Hybrid',
-          experienceLevel: job.experienceLevel || `${job.years_of_experience_min || 0}+ years`,
-          education: job.education || job.required_education || 'Any',
-          sector: job.sector || job.category || 'Other',
-          tags: Array.isArray(job.tags) ? job.tags : String(job.required_skills || '').split(',').map((skill) => skill.trim()).filter(Boolean),
-          shortDescription: job.shortDescription || job.description || '',
-          fullDescription: job.fullDescription || job.description || '',
-          deadline: job.deadline || job.application_deadline || 'No deadline',
-          deadlineDate: job.deadlineDate || job.application_deadline || '',
-          postedAt: job.postedAt || `Posted ${job.created_at || 'recently'}`,
-          postedHoursAgo: Number(job.postedHoursAgo) || 0,
-          priorityRank: Number(job.priorityRank) || 1,
-          salaryValue: Number(job.salaryValue) || 0,
-          aiMatchScore: Number(job.aiMatchScore) || 0,
-          matchReason: job.matchReason || 'Published by an employer on the Job Matching platform.'
-        }));
-      return [...publishedJobs, ...initialJobs.filter((job) => !publishedJobs.some((publishedJob) => publishedJob.id === job.id))];
-    } catch (error) {
-      console.error('Unable to load employer jobs:', error);
-      return initialJobs;
-    }
-  });
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const fromDashboard = location.state?.fromDashboard === true || searchParams.get('from') === 'dashboard';
+  const normalizeApiJob = (job) => {
+    const rawTags = Array.isArray(job.tags)
+      ? job.tags
+      : Array.isArray(job.required_skills)
+        ? job.required_skills
+        : String(job.required_skills || "")
+            .split(",")
+            .map((skill) => skill.trim())
+            .filter(Boolean);
+
+    const normalizedSalaryMin = Number(job.salary_min ?? job.salaryMin ?? 0);
+    const normalizedSalaryMax = Number(job.salary_max ?? job.salaryMax ?? 0);
+    const priceText =
+      normalizedSalaryMin || normalizedSalaryMax
+        ? `${job.currency || "ETB"} ${normalizedSalaryMin.toLocaleString()} - ${normalizedSalaryMax.toLocaleString()} / mo`
+        : job.salary || "Compensation disclosed upon application";
+
+    return {
+      ...job,
+      id: job.id || job.jobId,
+      company: job.company || job.company_name || "Employer company",
+      location: job.location || job.locationValue || "Location not specified",
+      locationValue: job.locationValue || job.location || "",
+      type: job.type || job.job_type || "Full-time",
+      workplace: job.workplace || job.work_mode || "Hybrid",
+      experienceLevel:
+        job.experienceLevel ||
+        job.experience_level ||
+        "Mid-level",
+      education: job.education || job.required_education || "Any",
+      sector: job.sector || job.category || "Other",
+      gender: job.gender ||
+        (job.gender_preference === "male"
+          ? "Male"
+          : job.gender_preference === "female"
+            ? "Female"
+            : "Any Gender"),
+      vacancies: Number(job.vacancies ?? job.vacancy_count ?? 1),
+      deadline: job.deadline || job.application_deadline || "No deadline",
+      deadlineDate: job.deadlineDate || job.application_deadline || "",
+      postedAt: job.postedAt || (job.created_at ? `Posted ${new Date(job.created_at).toLocaleDateString()}` : "Recently posted"),
+      postedHoursAgo: Number(job.postedHoursAgo) || 0,
+      priorityRank: Number(job.priorityRank) || 1,
+      salaryValue: Number(job.salaryValue ?? normalizedSalaryMin ?? 0),
+      salary: priceText,
+      aiMatchScore: Number(job.aiMatchScore || 0),
+      matchReason:
+        job.matchReason ||
+        "Published by an employer on the Job Matching platform.",
+      tags: rawTags,
+      shortDescription: job.shortDescription || job.description || "",
+      fullDescription: job.fullDescription || job.description || "",
+      responsibilities: Array.isArray(job.responsibilities)
+        ? job.responsibilities
+        : [],
+      requirements: Array.isArray(job.requirements)
+        ? job.requirements
+        : [],
+      benefits: Array.isArray(job.benefits) ? job.benefits : [],
+    };
+  };
+  const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState("");
   useEffect(() => {
     let mounted = true;
-    api.get('/jobs').then(({ data }) => {
-      if (!mounted || !data.jobs?.length) return;
-      const published = data.jobs.map((job) => ({ ...job, company: job.company_name || 'Employer company', workplace: job.work_mode || 'hybrid', type: job.job_type || 'full-time', sector: job.category || 'Other', tags: String(job.required_skills || '').split(',').map((skill) => skill.trim()).filter(Boolean), shortDescription: job.description || '', fullDescription: job.description || '', deadline: job.application_deadline || 'No deadline', postedAt: 'Recently posted', aiMatchScore: 0 }));
-      setJobs((current) => [...published, ...current.filter((item) => !published.some((job) => String(job.id) === String(item.id))) ]);
-    }).catch(() => {});
-    return () => { mounted = false; };
+
+    const loadJobs = async () => {
+      try {
+        const { data } = await api.get('/jobs');
+        if (!mounted) return;
+
+        const rawJobs = Array.isArray(data) ? data : data.jobs || [];
+        setJobs(rawJobs.map(normalizeApiJob));
+      } catch (error) {
+        console.error("Unable to load jobs from API:", error);
+        if (mounted) {
+          setJobs(initialJobs);
+        }
+      }
+    };
+
+    loadJobs();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Pagination / Limit State
@@ -1425,7 +1614,9 @@ export default function ExploreJobsPage() {
   const [selectedJobTypes, setSelectedJobTypes] = useState([]);
   const [selectedWorkMode, setSelectedWorkMode] = useState("All");
   const [selectedExperience, setSelectedExperience] = useState("all");
-  const [selectedEducation, setSelectedEducation] = useState("Select education level");
+  const [selectedEducation, setSelectedEducation] = useState(
+    "Select education level",
+  );
   const [selectedGender, setSelectedGender] = useState("Any");
   const [datePosted, setDatePosted] = useState("all");
 
@@ -1445,7 +1636,7 @@ export default function ExploreJobsPage() {
   const [isDatePostedOpen, setIsDatePostedOpen] = useState(false);
 
   // Modals State
-  const [isJobPostOpen, setIsJobPostOpen] = useState(false);
+  const [isJobPostOpen, setIsJobPostOpen] = useState(location.state?.openPostJob === true);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [authModalState, setAuthModalState] = useState({
@@ -1477,12 +1668,8 @@ export default function ExploreJobsPage() {
     sortBy,
   ]);
 
-  const toggleJobType = (type) => {
-    if (selectedJobTypes.includes(type)) {
-      setSelectedJobTypes(selectedJobTypes.filter((t) => t !== type));
-    } else {
-      setSelectedJobTypes([...selectedJobTypes, type]);
-    }
+  const selectJobType = (type) => {
+    setSelectedJobTypes(type ? [type] : []);
   };
 
   const showToast = (msg) => {
@@ -1501,10 +1688,14 @@ export default function ExploreJobsPage() {
 
   const toggleSave = (jobId) => {
     setSavedJobs((prev) =>
-      prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId]
+      prev.includes(jobId)
+        ? prev.filter((id) => id !== jobId)
+        : [...prev, jobId],
     );
     showToast(
-      savedJobs.includes(jobId) ? "Job removed from bookmarks." : "Job saved to bookmarks!"
+      savedJobs.includes(jobId)
+        ? "Job removed from bookmarks."
+        : "Job saved to bookmarks!",
     );
   };
 
@@ -1512,11 +1703,13 @@ export default function ExploreJobsPage() {
   const handleApplyClick = (job) => {
     setSelectedJob(null); // Close the detail modal
     setPendingApplication(job.id, job);
-    navigate("/login", { state: { intent: "apply", jobId: job.id, from: `/job-details/${job.id}` } });
+    navigate("/login", {
+      state: { intent: "apply", jobId: job.id, from: `/job-details/${job.id}` },
+    });
   };
 
   const handleViewDetails = (job) => {
-    localStorage.setItem('jobDetailsPreview', JSON.stringify(job));
+    localStorage.setItem("jobDetailsPreview", JSON.stringify(job));
     navigate(`/job-details/${job.id}`);
   };
 
@@ -1526,8 +1719,7 @@ export default function ExploreJobsPage() {
   };
 
   const handleJobCreated = (newJob) => {
-    setJobs((prev) => [newJob, ...prev]);
-    showToast(`🎉 New job "${newJob.title}" posted successfully!`);
+    showToast(`Job "${newJob.title}" submitted for admin approval.`);
   };
 
   const resetFilters = () => {
@@ -1578,27 +1770,55 @@ export default function ExploreJobsPage() {
       if (query) {
         const matchesTitle = job.title.toLowerCase().includes(query);
         const matchesCompany = job.company.toLowerCase().includes(query);
-        const matchesTags = job.tags.some((tag) => tag.toLowerCase().includes(query));
+        const matchesTags = job.tags.some((tag) =>
+          tag.toLowerCase().includes(query),
+        );
         const matchesSector = job.sector.toLowerCase().includes(query);
-        if (!matchesTitle && !matchesCompany && !matchesTags && !matchesSector) {
+        if (
+          !matchesTitle &&
+          !matchesCompany &&
+          !matchesTags &&
+          !matchesSector
+        ) {
           return false;
         }
       }
 
-      if (selectedSector !== "Select sector" && job.sector !== selectedSector) return false;
-      if (selectedLocation !== "Select location" && job.locationValue !== selectedLocation) return false;
-      if (selectedJobTypes.length > 0 && !selectedJobTypes.includes(job.type)) return false;
-      if (selectedWorkMode !== "All" && job.workplace !== selectedWorkMode) return false;
+      if (selectedSector !== "Select sector" && job.sector !== selectedSector)
+        return false;
+      if (
+        selectedLocation !== "Select location" &&
+        job.locationValue !== selectedLocation
+      )
+        return false;
+      if (selectedJobTypes.length > 0 && !selectedJobTypes.includes(job.type))
+        return false;
+      if (selectedWorkMode !== "All" && job.workplace !== selectedWorkMode)
+        return false;
       if (
         selectedExperience !== "all" &&
-        job.experienceLevel.toLowerCase().indexOf(selectedExperience.toLowerCase()) === -1
-      ) return false;
+        job.experienceLevel
+          .toLowerCase()
+          .indexOf(selectedExperience.toLowerCase()) === -1
+      )
+        return false;
       if (
         selectedEducation !== "Select education level" &&
         job.education.indexOf(selectedEducation) === -1
-      ) return false;
-      if (selectedGender !== "Any" && job.gender !== "Any" && job.gender !== selectedGender) return false;
-      if (minSalary > 0 && job.currency === currency && job.salaryValue < minSalary) return false;
+      )
+        return false;
+      if (
+        selectedGender !== "Any" &&
+        job.gender !== "Any" &&
+        job.gender !== selectedGender
+      )
+        return false;
+      if (
+        minSalary > 0 &&
+        job.currency === currency &&
+        job.salaryValue < minSalary
+      )
+        return false;
       if (datePosted === "24h" && job.postedHoursAgo > 24) return false;
       if (datePosted === "7d" && job.postedHoursAgo > 168) return false;
       if (datePosted === "30d" && job.postedHoursAgo > 720) return false;
@@ -1616,7 +1836,11 @@ export default function ExploreJobsPage() {
     } else if (sortBy === "salary") {
       sorted.sort((a, b) => b.salaryValue - a.salaryValue);
     } else if (sortBy === "deadline") {
-      sorted.sort((a, b) => new Date(a.deadlineDate).getTime() - new Date(b.deadlineDate).getTime());
+      sorted.sort(
+        (a, b) =>
+          new Date(a.deadlineDate).getTime() -
+          new Date(b.deadlineDate).getTime(),
+      );
     }
 
     return sorted;
@@ -1640,7 +1864,7 @@ export default function ExploreJobsPage() {
   const visibleJobs = filteredJobs.slice(0, visibleCount);
 
   return (
-    <div className="jobs-page min-h-screen bg-[#F4F7FA] text-slate-900 font-sans flex flex-col">
+    <div className="jobs-page min-h-screen bg-white text-slate-900 font-sans flex flex-col">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#2B73A4] text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 border border-[#56A2D8]">
@@ -1655,7 +1879,7 @@ export default function ExploreJobsPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                Explore Jobs
+                Find Jobs
               </h1>
             </div>
             <p className="text-sm sm:text-base text-slate-600 font-medium mt-1.5">
@@ -1665,6 +1889,16 @@ export default function ExploreJobsPage() {
 
           {/* TOP RIGHT ACTION BUTTONS */}
           <div className="flex items-center gap-3 flex-wrap">
+            {fromDashboard && (
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:border-[var(--brand-primary)] hover:text-[var(--brand-deep)]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Dashboard
+              </button>
+            )}
             {activeFiltersCount > 0 && (
               <button
                 type="button"
@@ -1688,7 +1922,13 @@ export default function ExploreJobsPage() {
             {/* 1. TOP RIGHT 'JOB POST' BUTTON */}
             <button
               type="button"
-              onClick={() => setIsJobPostOpen(true)}
+              onClick={() => {
+                if (!localStorage.getItem("token")) {
+                  navigate("/login", { state: { intent: "post-job" } });
+                  return;
+                }
+                setIsJobPostOpen(true);
+              }}
               className="px-5 py-2.5 rounded-xl border border-[#D0E5F5] bg-[#F0F7FC] hover:bg-white text-[#2B73A4] hover:border-[#56A2D8] text-sm sm:text-base font-extrabold shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer flex items-center gap-2.5 tracking-tight group"
             >
               <PlusCircle className="h-5 w-5 text-[#56A2D8] group-hover:scale-110 transition-transform" />
@@ -1699,9 +1939,9 @@ export default function ExploreJobsPage() {
             <button
               type="button"
               onClick={() => setIsAiAssistantOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm sm:text-base font-extrabold shadow-sm shadow-blue-500/30 hover:shadow-md transition-all duration-200 cursor-pointer flex items-center gap-2.5 tracking-tight group"
+              className="px-5 py-2.5 rounded-xl brand-gradient text-white text-sm sm:text-base font-extrabold shadow-lg shadow-indigo-500/30 hover:shadow-xl transition-all duration-200 cursor-pointer flex items-center gap-2.5 tracking-tight group hover:scale-105"
             >
-              <Sparkles className="h-5 w-5 text-sky-200 group-hover:rotate-12 transition-transform" />
+              <Sparkles className="h-5 w-5 text-white/80 group-hover:rotate-12 transition-transform" />
               <span>AI Google Assistant</span>
             </button>
           </div>
@@ -1736,8 +1976,10 @@ export default function ExploreJobsPage() {
         <div className="flex flex-col lg:flex-row items-start gap-4">
           {/* LEFT: FILTER SIDEBAR */}
           <aside
-            className={`brand-sidebar explore-sidebar fixed inset-y-0 right-0 w-72 shrink-0 overflow-y-auto p-6 shadow-2xl transition-transform lg:sticky lg:top-6 lg:left-0 lg:right-auto lg:block lg:max-h-[calc(100vh-3rem)] lg:translate-x-0 lg:rounded-2xl lg:p-6 lg:shadow-2xs ${
-              mobileFiltersOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+            className={`brand-sidebar explore-sidebar fixed inset-y-0 right-0 w-72 shrink-0 overflow-y-auto overscroll-contain p-6 shadow-2xl transition-transform lg:sticky lg:top-6 lg:left-0 lg:right-auto lg:block lg:h-[calc(100vh-3rem)] lg:translate-x-0 lg:rounded-2xl lg:p-6 lg:shadow-2xs ${
+              mobileFiltersOpen
+                ? "translate-x-0"
+                : "translate-x-full lg:translate-x-0"
             }`}
           >
             <div className="mb-6 flex items-center justify-between pb-3.5 border-b border-slate-100 text-left">
@@ -1770,8 +2012,14 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsSectorOpen(!isSectorOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Sector</span>
-                  {isSectorOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Sector
+                  </span>
+                  {isSectorOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isSectorOpen && (
@@ -1782,7 +2030,13 @@ export default function ExploreJobsPage() {
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50/50 text-base font-semibold text-slate-900 outline-hidden hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer shadow-2xs"
                     >
                       {SECTORS.map((sec, idx) => (
-                        <option key={idx} value={sec} className="text-slate-900 font-medium py-1">{sec}</option>
+                        <option
+                          key={idx}
+                          value={sec}
+                          className="text-slate-900 font-medium py-1"
+                        >
+                          {sec}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -1795,29 +2049,32 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsJobTypeOpen(!isJobTypeOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Job Types</span>
-                  {isJobTypeOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Job Types
+                  </span>
+                  {isJobTypeOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isJobTypeOpen && (
-                  <div className="mt-3 space-y-2.5">
-                    {JOB_TYPES.map((type) => {
-                      const isChecked = selectedJobTypes.includes(type);
-                      return (
-                        <label
-                          key={type}
-                          className="flex items-center gap-3.5 p-2 rounded-xl text-base font-semibold text-slate-900 cursor-pointer hover:bg-slate-50"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleJobType(type)}
-                            className="h-5 w-5 rounded border-slate-300 text-[#56A2D8] accent-[#56A2D8] cursor-pointer"
-                          />
-                          <span className={isChecked ? "text-[#2B73A4] font-bold" : "text-slate-800"}>{type}</span>
-                        </label>
-                      );
-                    })}
+                  <div className="mt-3">
+                    <select
+                      value={selectedJobTypes[0] || ""}
+                      onChange={(e) => selectJobType(e.target.value)}
+                      className={`w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-base font-semibold outline-hidden shadow-2xs transition hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer ${selectedJobTypes.length === 0 ? "text-slate-400" : "text-slate-900"}`}
+                    >
+                      <option value="" disabled hidden>
+                        Select job type
+                      </option>
+                      {JOB_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>
@@ -1828,8 +2085,14 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsLocationOpen(!isLocationOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Location</span>
-                  {isLocationOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Location
+                  </span>
+                  {isLocationOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isLocationOpen && (
@@ -1840,7 +2103,13 @@ export default function ExploreJobsPage() {
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50/50 text-base font-semibold text-slate-900 outline-hidden hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer shadow-2xs"
                     >
                       {LOCATIONS.map((loc, idx) => (
-                        <option key={idx} value={loc} className="text-slate-900 font-medium py-1">{loc}</option>
+                        <option
+                          key={idx}
+                          value={loc}
+                          className="text-slate-900 font-medium py-1"
+                        >
+                          {loc}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -1853,8 +2122,14 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsWorkModeOpen(!isWorkModeOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Workplace Mode</span>
-                  {isWorkModeOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Workplace Mode
+                  </span>
+                  {isWorkModeOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isWorkModeOpen && (
@@ -1865,7 +2140,13 @@ export default function ExploreJobsPage() {
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50/50 text-base font-semibold text-slate-900 outline-hidden hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer shadow-2xs"
                     >
                       {WORK_MODES.map((wm) => (
-                        <option key={wm.value} value={wm.value} className="text-slate-900 font-medium py-1">{wm.label}</option>
+                        <option
+                          key={wm.value}
+                          value={wm.value}
+                          className="text-slate-900 font-medium py-1"
+                        >
+                          {wm.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -1878,8 +2159,14 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsExperienceOpen(!isExperienceOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Experience Level</span>
-                  {isExperienceOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Experience Level
+                  </span>
+                  {isExperienceOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isExperienceOpen && (
@@ -1890,7 +2177,13 @@ export default function ExploreJobsPage() {
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50/50 text-base font-semibold text-slate-900 outline-hidden hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer shadow-2xs"
                     >
                       {EXPERIENCE_LEVELS.map((exp) => (
-                        <option key={exp.value} value={exp.value} className="text-slate-900 font-medium py-1">{exp.label}</option>
+                        <option
+                          key={exp.value}
+                          value={exp.value}
+                          className="text-slate-900 font-medium py-1"
+                        >
+                          {exp.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -1903,8 +2196,14 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsEducationOpen(!isEducationOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Education Level</span>
-                  {isEducationOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Education Level
+                  </span>
+                  {isEducationOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isEducationOpen && (
@@ -1915,7 +2214,13 @@ export default function ExploreJobsPage() {
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50/50 text-base font-semibold text-slate-900 outline-hidden hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer shadow-2xs"
                     >
                       {EDUCATION_LEVELS.map((edu, idx) => (
-                        <option key={idx} value={edu} className="text-slate-900 font-medium py-1">{edu}</option>
+                        <option
+                          key={idx}
+                          value={edu}
+                          className="text-slate-900 font-medium py-1"
+                        >
+                          {edu}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -1928,28 +2233,48 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsCompensationOpen(!isCompensationOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Compensation</span>
-                  {isCompensationOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Compensation
+                  </span>
+                  {isCompensationOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isCompensationOpen && (
                   <div className="mt-3.5 space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-base font-bold text-slate-700">Currency</span>
+                      <span className="text-base font-bold text-slate-700">
+                        Currency
+                      </span>
                       <div className="flex items-center gap-1 bg-[#F0F7FC] border border-[#D0E5F5] p-1 rounded-xl">
                         <button
                           type="button"
-                          onClick={() => { setCurrency("ETB"); setMinSalary(0); }}
-                          className={`px-4 py-1.5 rounded-lg text-sm font-bold cursor-pointer transition ${currency === "ETB" ? "bg-[#56A2D8] text-white" : "text-slate-700"
-                            }`}
+                          onClick={() => {
+                            setCurrency("ETB");
+                            setMinSalary(0);
+                          }}
+                          className={`px-4 py-1.5 rounded-lg text-sm font-bold cursor-pointer transition ${
+                            currency === "ETB"
+                              ? "bg-[#56A2D8] text-white"
+                              : "text-slate-700"
+                          }`}
                         >
                           ETB
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setCurrency("USD"); setMinSalary(0); }}
-                          className={`px-4 py-1.5 rounded-lg text-sm font-bold cursor-pointer transition ${currency === "USD" ? "bg-[#56A2D8] text-white" : "text-slate-700"
-                            }`}
+                          onClick={() => {
+                            setCurrency("USD");
+                            setMinSalary(0);
+                          }}
+                          className={`px-4 py-1.5 rounded-lg text-sm font-bold cursor-pointer transition ${
+                            currency === "USD"
+                              ? "bg-[#56A2D8] text-white"
+                              : "text-slate-700"
+                          }`}
                         >
                           USD
                         </button>
@@ -1960,8 +2285,12 @@ export default function ExploreJobsPage() {
                       <span className="text-slate-700">Minimum:</span>
                       <span className="text-[#2B73A4] font-black">
                         {currency === "ETB"
-                          ? minSalary > 0 ? `ETB ${minSalary.toLocaleString()}` : "Any Salary"
-                          : minSalary > 0 ? `$${minSalary.toLocaleString()}` : "Any Salary"}
+                          ? minSalary > 0
+                            ? `ETB ${minSalary.toLocaleString()}`
+                            : "Any Salary"
+                          : minSalary > 0
+                            ? `$${minSalary.toLocaleString()}`
+                            : "Any Salary"}
                       </span>
                     </div>
 
@@ -1984,8 +2313,14 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsGenderOpen(!isGenderOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Gender Preference</span>
-                  {isGenderOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Gender Preference
+                  </span>
+                  {isGenderOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isGenderOpen && (
@@ -1996,7 +2331,13 @@ export default function ExploreJobsPage() {
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50/50 text-base font-semibold text-slate-900 outline-hidden hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer shadow-2xs"
                     >
                       {GENDER_PREFERENCES.map((gp) => (
-                        <option key={gp.value} value={gp.value} className="text-slate-900 font-medium py-1">{gp.label}</option>
+                        <option
+                          key={gp.value}
+                          value={gp.value}
+                          className="text-slate-900 font-medium py-1"
+                        >
+                          {gp.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -2009,8 +2350,14 @@ export default function ExploreJobsPage() {
                   onClick={() => setIsDatePostedOpen(!isDatePostedOpen)}
                   className="flex items-center justify-between font-bold text-slate-900 hover:text-[#2B73A4] cursor-pointer py-1 select-none transition-colors"
                 >
-                  <span className="text-lg font-bold tracking-tight">Date Posted</span>
-                  {isDatePostedOpen ? <ChevronUp className="h-5 w-5 text-[#56A2D8]" /> : <ChevronDown className="h-5 w-5 text-[#56A2D8]" />}
+                  <span className="text-lg font-bold tracking-tight">
+                    Date Posted
+                  </span>
+                  {isDatePostedOpen ? (
+                    <ChevronUp className="h-5 w-5 text-[#56A2D8]" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-[#56A2D8]" />
+                  )}
                 </div>
 
                 {isDatePostedOpen && (
@@ -2021,7 +2368,13 @@ export default function ExploreJobsPage() {
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50/50 text-base font-semibold text-slate-900 outline-hidden hover:border-[#56A2D8] focus:border-[#56A2D8] focus:bg-white cursor-pointer shadow-2xs"
                     >
                       {DATE_POSTED_OPTIONS.map((dp) => (
-                        <option key={dp.value} value={dp.value} className="text-slate-900 font-medium py-1">{dp.label}</option>
+                        <option
+                          key={dp.value}
+                          value={dp.value}
+                          className="text-slate-900 font-medium py-1"
+                        >
+                          {dp.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -2059,7 +2412,9 @@ export default function ExploreJobsPage() {
                   <option value="priority">Top Priority & Urgent</option>
                   <option value="match">Highest AI Match</option>
                   <option value="salary">Highest Compensation</option>
-                  <option value="deadline">Closing Soon (Nearest Deadline)</option>
+                  <option value="deadline">
+                    Closing Soon (Nearest Deadline)
+                  </option>
                 </select>
               </div>
             </div>
@@ -2067,9 +2422,12 @@ export default function ExploreJobsPage() {
             {filteredJobs.length === 0 ? (
               <div className="jobs-empty-state rounded-2xl border border-slate-200/90 bg-white p-14 text-center shadow-2xs space-y-4">
                 <Search className="mx-auto h-10 w-10 text-slate-300" />
-                <h3 className="text-lg font-bold text-slate-900">No jobs match your selected criteria</h3>
+                <h3 className="text-lg font-bold text-slate-900">
+                  No jobs match your selected criteria
+                </h3>
                 <p className="text-sm text-slate-500 font-medium max-w-sm mx-auto">
-                  Try clearing some of your filters in the sidebar to view more opportunities.
+                  Try clearing some of your filters in the sidebar to view more
+                  opportunities.
                 </p>
                 <button
                   type="button"
@@ -2102,13 +2460,14 @@ export default function ExploreJobsPage() {
                         type="button"
                         onClick={() =>
                           setVisibleCount((prev) =>
-                            Math.min(prev + 4, filteredJobs.length)
+                            Math.min(prev + 4, filteredJobs.length),
                           )
                         }
                         className="px-8 py-3.5 rounded-2xl border-2 border-[#D0E5F5] bg-white hover:bg-[#F0F7FC] hover:border-[#56A2D8] text-[#2B73A4] text-base font-extrabold transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer flex items-center gap-2.5 group"
                       >
                         <span>
-                          Show More Jobs (+{filteredJobs.length - visibleCount} remaining)
+                          Show More Jobs (+{filteredJobs.length - visibleCount}{" "}
+                          remaining)
                         </span>
                         <ChevronDown className="h-5 w-5 text-[#56A2D8] group-hover:translate-y-0.5 transition-transform" />
                       </button>
@@ -2126,7 +2485,8 @@ export default function ExploreJobsPage() {
                       </button>
                     )}
                     <span className="text-xs font-semibold text-slate-500">
-                      Showing {visibleJobs.length} of {filteredJobs.length} positions
+                      Showing {visibleJobs.length} of {filteredJobs.length}{" "}
+                      positions
                     </span>
                   </div>
                 )}
@@ -2151,7 +2511,9 @@ export default function ExploreJobsPage() {
         isOpen={authModalState.open}
         initialMode={authModalState.mode}
         targetJob={authModalState.targetJob}
-        onClose={() => setAuthModalState({ open: false, mode: "login", targetJob: null })}
+        onClose={() =>
+          setAuthModalState({ open: false, mode: "login", targetJob: null })
+        }
         onSuccess={handleAuthSuccess}
       />
 

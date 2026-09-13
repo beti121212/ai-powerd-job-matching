@@ -1,4 +1,28 @@
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
 @import "tailwindcss";
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(1.5rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastProgress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@keyframes toastCountdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
 
 /* The employer workspace keeps only its dark-mode action in the secondary
    header; the global navigation owns search, notifications, company identity,
@@ -34,8 +58,15 @@ html,
 body,
 #root {
   min-height: 100%;
+  height: auto;
+  width: 100%;
   margin: 0;
   background: var(--background);
+}
+
+html,
+body {
+  overflow-x: hidden;
 }
 
 html {
@@ -50,10 +81,80 @@ body {
   color: var(--body);
   background: #ffffff;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 * {
   box-sizing: border-box;
+}
+
+.admin-shell {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.admin-main {
+  overflow-x: hidden;
+}
+
+.admin-sidebar button[aria-label="Logout"] {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .admin-sidebar > div {
+    padding: 1rem;
+  }
+
+  .admin-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+  }
+
+  .admin-nav button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    border-left-width: 0;
+    border-bottom: 3px solid transparent;
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    white-space: nowrap;
+  }
+
+  .admin-nav button[class*="border-blue-600"] {
+    border-bottom-color: #2563eb;
+  }
+
+  .admin-sidebar button[aria-label="Logout"] {
+    margin-top: 0.75rem;
+  }
+
+  .admin-main {
+    padding: 1.5rem 1rem;
+  }
+
+  .admin-main h1 {
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .admin-sidebar > div {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .admin-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .admin-nav button {
+    min-height: 2.75rem;
+  }
 }
 
 /* Employer pipeline tables keep their column labels and empty states easy to scan. */
@@ -87,6 +188,59 @@ input,
 textarea,
 select {
   font: inherit;
+  min-height: 44px;
+}
+
+input,
+textarea {
+  display: block;
+  max-width: 100%;
+  color: #0f172a;
+  font-style: normal;
+  font-weight: 500;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+input,
+textarea,
+select {
+  font-style: normal !important;
+  font-size: 0.9375rem !important;
+  font-weight: 500 !important;
+  color: #0f172a !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+  font-style: italic !important;
+  font-size: 0.8125rem !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.01em;
+  opacity: 1 !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 20%);
+}
+
+@media (prefers-color-scheme: dark) {
+  input::placeholder,
+  textarea::placeholder {
+    color: #64748b !important;
+  }
+}
+
+@media (max-width: 639px) {
+  button,
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+  }
 }
 
 button:focus-visible,
@@ -135,6 +289,24 @@ select:focus-visible {
   background: transparent;
 }
 
+.about-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.about-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.about-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
+}
+
+.about-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 [aria-labelledby="logout-title"] {
   max-width: 32rem;
   border-radius: 1.5rem;
@@ -142,6 +314,29 @@ select:focus-visible {
 }
 
 @layer utilities {
+  .responsive-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .responsive-split {
+    @apply grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-8;
+  }
+
+  .responsive-heading {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .brand-gradient {
     background-image: linear-gradient(135deg, var(--brand-primary), var(--brand-deep));
   }
@@ -206,6 +401,47 @@ select:focus-visible {
     transform: translateY(0);
   }
 
+  .card-floating {
+    @apply rounded-[26px] border border-slate-200/90 bg-white p-8 shadow-[0_16px_36px_-10px_rgba(0,0,0,0.12),0_6px_16px_-4px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out;
+  }
+
+  .card-floating:hover {
+    @apply -translate-y-3 cursor-pointer border-emerald-500/40 shadow-[0_26px_50px_-12px_rgba(0,0,0,0.18),0_8px_20px_-6px_rgba(0,0,0,0.08)];
+  }
+
+  /* Match score card proportions follow the compact score-and-chart layout. */
+  article[class*="border-blue-100"][class*="bg-blue-50\\/60"] > .grid {
+    grid-template-columns: 0.82fr 1.18fr;
+    gap: 1.5rem;
+  }
+
+  article[class*="border-blue-100"][class*="bg-blue-50\\/60"] h2 {
+    max-width: 11.25rem;
+    line-height: 1.15;
+  }
+
+  div[aria-label="Match score breakdown chart"] {
+    min-height: 15rem;
+    border-radius: 1.25rem;
+    background: rgb(255 255 255 / 0.85);
+  }
+
+  div[aria-label="Match score breakdown chart"] > div {
+    max-width: 3rem;
+  }
+
+  @media (max-width: 639px) {
+    article[class*="border-blue-100"][class*="bg-blue-50\\/60"] > .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  img[alt="Professionals connecting with an employer"] {
+    height: 18rem;
+    object-fit: cover;
+    object-position: center;
+  }
+
   .dashboard-action-button {
     background-color: var(--brand-primary) !important;
     transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -218,7 +454,7 @@ select:focus-visible {
 
   /* Explore Jobs uses coordinated tinted sections and elevated card surfaces. */
   .jobs-page {
-    background: #eef4f8;
+    background: #ffffff;
   }
 
   .jobs-page .jobs-search-panel,
@@ -236,12 +472,25 @@ select:focus-visible {
   }
 
   .jobs-page .explore-sidebar {
-    background: var(--brand-primary);
-    border-color: var(--brand-primary);
-    color: #ffffff;
-    scrollbar-color: rgb(255 255 255 / 65%) rgb(255 255 255 / 12%);
+    background: #ffffff;
+    border-color: #e2e8f0;
+    color: #0f172a;
+    scrollbar-color: #94a3b8 #f8fafc;
     scrollbar-width: thin;
     overscroll-behavior: contain;
+  }
+
+  .jobs-page .explore-sidebar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .jobs-page .explore-sidebar::-webkit-scrollbar-track {
+    background: #f8fafc;
+  }
+
+  .jobs-page .explore-sidebar::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
   }
 
   .jobs-page .explore-sidebar h2,
@@ -250,11 +499,11 @@ select:focus-visible {
   .jobs-page .explore-sidebar .text-slate-700,
   .jobs-page .explore-sidebar .text-slate-600,
   .jobs-page .explore-sidebar .text-slate-500 {
-    color: #ffffff;
+    color: #0f172a;
   }
 
   .jobs-page .explore-sidebar .border-slate-100 {
-    border-color: rgb(255 255 255 / 24%);
+    border-color: #e2e8f0;
   }
 
   .jobs-page .explore-sidebar .cursor-pointer {
@@ -263,17 +512,17 @@ select:focus-visible {
   }
 
   .jobs-page .explore-sidebar .cursor-pointer:hover {
-    background-color: rgb(255 255 255 / 14%);
-    color: #ffffff;
+    background-color: #f8fafc;
+    color: var(--brand-primary);
   }
 
   .jobs-page .explore-sidebar .cursor-pointer:hover span,
   .jobs-page .explore-sidebar .cursor-pointer:hover svg {
-    color: #ffffff !important;
+    color: var(--brand-primary) !important;
   }
 
   .jobs-page .explore-sidebar > .space-y-6 > div > div.cursor-pointer svg {
-    color: #ffffff !important;
+    color: var(--brand-primary) !important;
     flex-shrink: 0;
   }
 
@@ -282,8 +531,6 @@ select:focus-visible {
     background-color: #ffffff;
     color: #0f172a !important;
     appearance: auto;
-    overflow-y: scroll;
-    scrollbar-gutter: stable;
     scrollbar-width: auto;
   }
 
@@ -301,22 +548,35 @@ select:focus-visible {
     max-height: 13rem;
     overflow-y: auto;
     padding-right: 0.25rem;
-    scrollbar-color: rgb(255 255 255 / 65%) rgb(255 255 255 / 12%);
+    scrollbar-color: #94a3b8 #f8fafc;
     scrollbar-width: thin;
   }
 
+  .jobs-page .explore-sidebar > .space-y-6 > div > div[class*="mt-3"]::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .jobs-page .explore-sidebar > .space-y-6 > div > div[class*="mt-3"]::-webkit-scrollbar-track {
+    background: #f8fafc;
+  }
+
+  .jobs-page .explore-sidebar > .space-y-6 > div > div[class*="mt-3"]::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 999px;
+  }
+
   .jobs-page .explore-sidebar .cursor-pointer:hover svg {
-    color: #ffffff;
+    color: var(--brand-primary);
   }
 
   .jobs-page .job-listing-card {
-    background: #f5fafd !important;
+    background: #ffffff !important;
     border-color: #cfe2ee;
     box-shadow: 0 8px 18px rgb(15 23 42 / 8%), 0 2px 5px rgb(86 162 216 / 10%);
   }
 
   .jobs-page .job-listing-card:nth-child(even) {
-    background: #edf6fb !important;
+    background: #ffffff !important;
   }
 
   .jobs-page .job-listing-card:hover,
@@ -543,6 +803,25 @@ main>section:nth-of-type(3) aside>div:last-child {
   background-color: #ffffff;
 }
 
+.dashboard-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #f8fafc;
+  overscroll-behavior: contain;
+}
+
+.dashboard-sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard-sidebar-scroll::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.dashboard-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
+}
+
 .information-page input,
 .information-page textarea,
 .information-page select {
@@ -555,8 +834,7 @@ main>section:nth-of-type(3) aside>div:last-child {
 
 .information-page input::placeholder,
 .information-page textarea::placeholder {
-  color: #64748b !important;
-  opacity: 1;
+  color: #94a3b8 !important;
 }
 
 /* Keep seeker profile labels and fields visually consistent with the brand. */
@@ -564,16 +842,23 @@ main>section:nth-of-type(3) aside>div:last-child {
   color: var(--brand-deep) !important;
 }
 
-.profile-readable label::after {
-  content: ':';
-  margin-left: 0.15rem;
-}
-
 .profile-readable input,
 .profile-readable textarea,
 .profile-readable select {
   background-color: var(--brand-soft) !important;
   border-color: var(--brand-border) !important;
+}
+
+.profile-readable select.profile-job-preference-select,
+.profile-readable select.profile-job-preference-select option {
+  font-style: normal !important;
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+}
+
+.profile-readable select.profile-job-preference-select:has(option:checked[value=""]) {
+  color: #94a3b8 !important;
+  font-style: italic !important;
 }
 
 .information-page input:focus,
@@ -734,4 +1019,26 @@ main table thead th {
 .seeker-module-page .border-slate-700,
 .seeker-module-page .border-slate-800 {
   border-color: var(--brand-border) !important;
+}
+
+@keyframes fieldShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes alertPulse {
+  0% { opacity: 0; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+input {
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+}
+
+textarea {
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }

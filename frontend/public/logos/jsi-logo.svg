@@ -1,0 +1,6 @@
+<svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="20" width="60" height="60" fill="#C41E3A" stroke="#C41E3A" stroke-width="3"/>
+  <line x1="35" y1="20" x2="35" y2="80" stroke="#fff" stroke-width="4"/>
+  <line x1="50" y1="20" x2="50" y2="80" stroke="#fff" stroke-width="4"/>
+  <text x="125" y="65" font-size="24" font-weight="bold" fill="#C41E3A" font-family="Arial, sans-serif">JSI</text>
+</svg>

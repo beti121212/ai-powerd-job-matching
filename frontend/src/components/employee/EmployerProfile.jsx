@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Building2, Save, Upload } from 'lucide-react';
+import officeImage from '../../pages/images/images3.jpg';
 
 const getStoredCompany = () => {
   try {
@@ -36,7 +37,17 @@ const EmployerProfile = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
+  const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
+
+  const triggerValidationAlert = (message, newErrors) => {
+    setErrors(newErrors);
+    setToast({ show: true, message, type: 'error' });
+    window.setTimeout(() => {
+      setErrors({});
+      setToast((previous) => ({ ...previous, show: false }));
+    }, 10000);
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -76,7 +87,7 @@ const EmployerProfile = () => {
           x: socials.x || ''
         }));
       } catch {
-        if (!savedCompany) setError('Unable to load your company profile.');
+        // Keep the empty profile state when no saved company exists.
       } finally {
         setLoading(false);
       }
@@ -90,8 +101,37 @@ const EmployerProfile = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const newErrors = {};
+
+    if (!profile.company_name || !profile.company_name.trim()) {
+      newErrors.company_name = 'Company Name is required.';
+    } else if (profile.company_name.trim().length < 2) {
+      newErrors.company_name = 'Company Name must be at least 2 characters.';
+    }
+
+    const tin = (profile.tin_number || '').trim();
+    if (!tin) {
+      newErrors.tin_number = 'TIN Number is required.';
+    } else if (!/^\d{10}$/.test(tin)) {
+      newErrors.tin_number = 'TIN must be exactly 10 numeric digits.';
+    }
+
+    if (!profile.license_number || !profile.license_number.trim()) {
+      newErrors.license_number = 'License / Registration Number is required.';
+    }
+
+    if (!profile.license_document_name && !profile.license_document_url) {
+      newErrors.license_document = 'Company License Document upload is required.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      triggerValidationAlert('Please complete all highlighted required fields.', newErrors);
+      document.getElementById(Object.keys(newErrors)[0])?.focus();
+      return;
+    }
+
     setSaving(true);
-    setError('');
+    setErrors({});
     try {
       const company = getStoredCompany() || {};
       const updatedCompany = {
@@ -125,7 +165,7 @@ const EmployerProfile = () => {
       localStorage.setItem('user', JSON.stringify({ ...storedUser, companyInfo: updatedCompany }));
       navigate('/employer/dashboard');
     } catch (saveError) {
-      setError(saveError.message);
+      triggerValidationAlert(saveError.message || 'Failed to save profile.', {});
     } finally {
       setSaving(false);
     }
@@ -134,25 +174,44 @@ const EmployerProfile = () => {
   if (loading) return <div className="mx-auto max-w-3xl p-8 text-center text-slate-500">Loading company profile...</div>;
 
   return (
-    <div className="information-page mx-auto w-full max-w-5xl space-y-8 p-6 pb-12 sm:p-8">
-      <div className="border-b border-slate-200 pb-6">
-        <div className="flex items-center gap-3">
-          <Building2 className="h-10 w-10 text-blue-600" />
-          <div>
-            <p className="text-sm font-bold uppercase tracking-wider text-blue-600">Employer Profile Setup</p>
-            <h1 className="text-4xl font-bold text-slate-900">Complete Your Company Profile</h1>
-            <p className="mt-2 text-base text-slate-500">Add detailed information candidates should know about your company.</p>
+    <div className="relative min-h-screen w-full overflow-hidden px-4 py-8 sm:px-6">
+      {toast.show && (
+        <div className={`fixed right-6 top-6 z-[9999] flex min-w-[320px] max-w-md flex-col gap-2 rounded-2xl p-4 text-white shadow-2xl animate-in slide-in-from-right duration-300 ${toast.type === 'error' ? 'border border-red-500 bg-red-600' : 'border border-emerald-500 bg-emerald-600'}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{toast.type === 'error' ? '⚠️' : '✓'}</span>
+              <p className="text-xs font-semibold sm:text-sm">{toast.message}</p>
+            </div>
+            <button type="button" onClick={() => setToast((previous) => ({ ...previous, show: false }))} className="text-xs font-bold text-white/80 hover:text-white" aria-label="Dismiss notification">✕</button>
+          </div>
+          <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/20"><div className="h-full w-full bg-white" style={{ animation: 'toastCountdown 10000ms linear forwards', transformOrigin: 'left center' }} /></div>
+        </div>
+      )}
+      <img
+        src={officeImage}
+        alt="Office Collaboration"
+        className="pointer-events-none fixed inset-0 -z-20 h-full w-full object-cover"
+      />
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-tr from-slate-950/60 via-blue-950/50 to-slate-900/60 backdrop-blur-[2px]" />
+
+      <div className="mx-auto my-10 w-full max-w-3xl rounded-3xl border border-white/40 bg-white/95 p-8 shadow-2xl shadow-blue-950/40 ring-1 ring-white/20 backdrop-blur-xl sm:max-w-4xl sm:p-12">
+        <div className="border-b border-slate-200 pb-6">
+          <div className="flex items-center gap-3">
+            <Building2 className="h-10 w-10 text-blue-600" />
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wider text-blue-600">Employer Profile Setup</p>
+              <h1 className="text-4xl font-bold text-slate-900">Complete Your Company Profile</h1>
+              <p className="mt-2 text-base text-slate-500">Add detailed information candidates should know about your company.</p>
+            </div>
           </div>
         </div>
-      </div>
-      {error && <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</p>}
-      <form onSubmit={handleSubmit} className="space-y-8 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
+        <form onSubmit={handleSubmit} className="mt-8 space-y-8">
         <div className="flex items-center justify-between text-base font-semibold"><span>Profile completion</span><span className="text-blue-600">{completion}%</span></div>
         <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-blue-600 transition-all" style={{ width: `${completion}%` }} /></div>
         <section>
           <h2 className="mb-5 text-2xl font-bold text-slate-900">Company Details</h2>
           <div className="grid gap-5 md:grid-cols-2">
-          <label className="block text-base font-semibold">Company Name<input required value={profile.company_name} onChange={(event) => setProfile({ ...profile, company_name: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label>
+          <label className="block text-base font-semibold">Company Name<input id="company_name" value={profile.company_name} onChange={(event) => { setProfile({ ...profile, company_name: event.target.value }); if (errors.company_name) setErrors((previous) => ({ ...previous, company_name: '' })); }} className={`mt-2 w-full rounded-xl border p-4 text-base font-normal transition-colors ${errors.company_name ? 'border-rose-400 bg-rose-50/15 ring-1 ring-rose-400/20' : 'border-slate-300'}`} />{errors.company_name && <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500/85 animate-fade-in"><span>⚠️</span><span>{errors.company_name}</span></p>}</label>
           <label className="block text-base font-semibold">Company Logo URL<input type="url" value={profile.logo_url} onChange={(event) => setProfile({ ...profile, logo_url: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label>
           </div>
         </section>
@@ -161,11 +220,12 @@ const EmployerProfile = () => {
           ['description', 'About Company'], ['mission', 'Mission'], ['vision', 'Vision'],
           ['services', 'Services / Products'], ['culture', 'Company Culture'], ['benefits', 'Benefits']
         ].map(([field, label]) => <label key={field} className="block text-base font-semibold">{label}<textarea value={profile[field]} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} rows="4" className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label>)}
-        <div className="grid gap-5 md:grid-cols-2"><label className="block text-base font-semibold">Founded Year<input type="number" min="1800" max="2100" value={profile.founded_year} onChange={(event) => setProfile({ ...profile, founded_year: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label><label className="block text-base font-semibold">TIN Number<input type="text" value={profile.tin_number} onChange={(event) => setProfile({ ...profile, tin_number: event.target.value })} placeholder="Enter company TIN number" className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label></div>
-        <div className="rounded-xl border border-slate-200 p-6"><h2 className="mb-5 text-xl font-bold">Legal &amp; Verification</h2><div className="grid gap-5 md:grid-cols-2"><label className="text-base font-semibold">License / Registration Number<input type="text" value={profile.license_number} onChange={(event) => setProfile({ ...profile, license_number: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label><label className="text-base font-semibold">Verification Status<select value={profile.verification_status} onChange={(event) => setProfile({ ...profile, verification_status: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-4 text-base font-normal"><option>Pending</option><option>Verified</option><option>Rejected</option><option>Expired</option></select></label><label className="text-base font-semibold">License Issue Date<input type="date" value={profile.license_issue_date} onChange={(event) => setProfile({ ...profile, license_issue_date: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label><label className="text-base font-semibold">License Expiry Date<input type="date" value={profile.license_expiry_date} onChange={(event) => setProfile({ ...profile, license_expiry_date: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label><label className="text-base font-semibold md:col-span-2">Company License Document Upload<input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(event) => setProfile({ ...profile, license_document_name: event.target.files?.[0]?.name || profile.license_document_name })} className="mt-2 w-full rounded-xl border border-dashed border-slate-300 p-4 text-base font-normal file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700" />{profile.license_document_name && <span className="mt-2 block text-sm text-slate-500">Selected: {profile.license_document_name}</span>}</label><label className="text-base font-semibold md:col-span-2">Existing License Document URL<input type="url" value={profile.license_document_url} onChange={(event) => setProfile({ ...profile, license_document_url: event.target.value })} placeholder="https://example.com/license-document" className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label></div><p className="mt-4 flex items-center gap-2 text-sm text-slate-500"><Upload className="h-5 w-5" />Upload a PDF or image for platform verification. Verification status is managed by the platform.</p></div>
+        <div className="grid gap-5 md:grid-cols-2"><label className="block text-base font-semibold">Founded Year<input type="number" min="1800" max="2100" value={profile.founded_year} onChange={(event) => setProfile({ ...profile, founded_year: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label><label className="block text-base font-semibold">TIN Number<input id="tin_number" type="text" maxLength={10} value={profile.tin_number} onChange={(event) => { setProfile({ ...profile, tin_number: event.target.value }); if (errors.tin_number) setErrors((previous) => ({ ...previous, tin_number: '' })); }} placeholder="Enter 10-digit company TIN number" className={`mt-2 w-full rounded-xl border p-4 text-base font-normal transition-colors ${errors.tin_number ? 'border-rose-400 bg-rose-50/15 ring-1 ring-rose-400/20' : 'border-slate-300'}`} />{errors.tin_number && <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500/85 animate-fade-in"><span>⚠️</span><span>{errors.tin_number}</span></p>}</label></div>
+        <div className="rounded-xl border border-slate-200 p-6"><h2 className="mb-5 text-xl font-bold">Legal &amp; Verification</h2><div className="grid gap-5 md:grid-cols-2"><label className="text-base font-semibold">License / Registration Number<input id="license_number" type="text" value={profile.license_number} onChange={(event) => { setProfile({ ...profile, license_number: event.target.value }); if (errors.license_number) setErrors((previous) => ({ ...previous, license_number: '' })); }} className={`mt-2 w-full rounded-xl border p-4 text-base font-normal transition-colors ${errors.license_number ? 'border-rose-400 bg-rose-50/15 ring-1 ring-rose-400/20' : 'border-slate-300'}`} />{errors.license_number && <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500/85 animate-fade-in"><span>⚠️</span><span>{errors.license_number}</span></p>}</label><label className="text-base font-semibold">Verification Status<select value={profile.verification_status} onChange={(event) => setProfile({ ...profile, verification_status: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-4 text-base font-normal"><option>Pending</option><option>Verified</option><option>Rejected</option><option>Expired</option></select></label><label className="text-base font-semibold">License Issue Date<input type="date" value={profile.license_issue_date} onChange={(event) => setProfile({ ...profile, license_issue_date: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label><label className="text-base font-semibold">License Expiry Date<input type="date" value={profile.license_expiry_date} onChange={(event) => setProfile({ ...profile, license_expiry_date: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label><label className="text-base font-semibold md:col-span-2">Company License Document Upload<input id="license_document" type="file" accept=".pdf,.docx,.png,.jpg,.jpeg" onChange={(event) => { setProfile({ ...profile, license_document_name: event.target.files?.[0]?.name || profile.license_document_name }); if (errors.license_document) setErrors((previous) => ({ ...previous, license_document: '' })); }} className={`mt-2 w-full rounded-xl border border-dashed p-4 text-base font-normal file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700 transition-colors ${errors.license_document ? 'border-rose-400 bg-rose-50/15' : 'border-slate-300'}`} />{profile.license_document_name && <span className="mt-2 block text-sm text-slate-500">Selected: {profile.license_document_name}</span>}{errors.license_document && <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-500/85 animate-fade-in"><span>⚠️</span><span>{errors.license_document}</span></p>}</label><label className="text-base font-semibold md:col-span-2">Existing License Document URL<input type="url" value={profile.license_document_url} onChange={(event) => { setProfile({ ...profile, license_document_url: event.target.value }); if (errors.license_document) setErrors((previous) => ({ ...previous, license_document: '' })); }} placeholder="https://example.com/license-document" className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label></div><p className="mt-4 flex items-center gap-2 text-sm text-slate-500"><Upload className="h-5 w-5" />Upload a PDF, DOCX, or image for platform verification. Verification status is managed by the platform.</p></div>
         <div className="rounded-xl border border-slate-200 p-6"><h2 className="mb-5 text-xl font-bold">Social Media Links</h2><div className="grid gap-5 md:grid-cols-3">{[['linkedin', 'LinkedIn'], ['facebook', 'Facebook'], ['x', 'X']].map(([field, label]) => <label key={field} className="text-base font-semibold">{label}<input type="url" value={profile[field]} onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 p-4 text-base font-normal" /></label>)}</div></div>
-        <button disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-4 text-base font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"><Save className="h-5 w-5" />{saving ? 'Saving...' : 'Save Profile & Continue'}<ArrowRight className="h-5 w-5" /></button>
-      </form>
+        <button disabled={saving} className="flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 text-base font-black text-white shadow-xl shadow-blue-600/30 transition-all hover:bg-blue-700 active:scale-[0.99] disabled:opacity-60"><Save className="h-5 w-5" />{saving ? 'Saving...' : 'Save Profile & Continue'}<ArrowRight className="h-5 w-5" /></button>
+        </form>
+      </div>
     </div>
   );
 };

@@ -25,7 +25,7 @@ export default function TopCandidatesList({ jobId, jobs: incomingJobs = [], onJo
     let mounted = true;
     setLoading(true);
     setError('');
-    api.get(`/jobs/${activeJobId}/top-candidates`, { params: { limit: 5 } })
+    api.get(`/employer/jobs/${activeJobId}/top-candidates`, { params: { limit: 5 } })
       .then(({ data }) => mounted && setCandidates(data.candidates || []))
       .catch((requestError) => mounted && setError(requestError?.response?.data?.message || 'Unable to load matched candidates.'))
       .finally(() => mounted && setLoading(false));

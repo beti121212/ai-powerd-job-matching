@@ -1,0 +1,5 @@
+<svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="80" fill="#fef3f2"/>
+  <rect width="200" height="80" fill="none" stroke="#e74c3c" stroke-width="2"/>
+  <text x="100" y="45" font-size="20" font-weight="bold" fill="#e74c3c" text-anchor="middle" font-family="Arial, sans-serif">AMREF</text>
+</svg>

@@ -151,7 +151,7 @@ const EmployerDashboard = () => {
         applicantsCount: 0
       };
       setJobs([createdJob, ...jobs]);
-      setPublishMessage('Job published successfully. It is now visible in Explore Jobs.');
+      setPublishMessage('Job published successfully. It is now visible in Find Jobs.');
       window.setTimeout(() => setPublishMessage(''), 4000);
     } catch (error) {
       console.error('Unable to create local job:', error);

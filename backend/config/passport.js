@@ -1,6 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const db = require('../connection');
+const { syncGoogleUser } = require('./googleAuth');
 
 passport.use(
   new GoogleStrategy(
@@ -11,44 +12,13 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
-        const googleId = profile.id;
-        const fullName = profile.displayName || 'Google User';
+        const result = await syncGoogleUser({
+          dbClient: db,
+          profile,
+          authProvider: 'google',
+        });
 
-        if (!email) {
-          return done(new Error('No email found from Google account'), null);
-        }
-
-        // 1. Check if user exists by google_id or email
-        const [rows] = await db.query(
-          'SELECT * FROM users WHERE google_id = ? OR email = ?',
-          [googleId, email]
-        );
-        let user = rows[0];
-
-        if (!user) {
-          // 2. New user registration
-          const [result] = await db.query(
-            'INSERT INTO users (full_name, email, google_id, role) VALUES (?, ?, ?, ?)',
-            [fullName, email, googleId, 'pending']
-          );
-          user = { 
-            id: result.insertId, 
-            full_name: fullName, 
-            email, 
-            google_id: googleId, 
-            role: 'pending'
-          };
-        } else if (!user.google_id) {
-          // 3. Link Google ID
-          await db.query(
-            'UPDATE users SET google_id = ? WHERE id = ?', 
-            [googleId, user.id]
-          );
-          user.google_id = googleId;
-        }
-
-        return done(null, user);
+        return done(null, { ...result.user, googleNewUser: result.isNewUser });
       } catch (error) {
         console.error('Passport Google Strategy Error:', error);
         return done(error, null);
