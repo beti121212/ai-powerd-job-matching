@@ -177,7 +177,7 @@ const register = async (req, res) => {
     );
 
     if (otpRecord.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired OTP / የተሳሳተ ወይም ጊዜው ያለፈበት OTP' });
+      return res.status(400).json({ error: 'Invalid or expired OTP.' });
     }
 
     // Hash password

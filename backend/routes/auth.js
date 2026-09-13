@@ -7,8 +7,6 @@ const { validateSignUp } = require('../middleware/validateAuth');
 const { issueOtp, generateAndSendOtp } = require('../services/otpService');
 
 const router = express.Router();
-const loginOtpRequests = new Map();
-const loginOtpAttempts = new Map();
 const LOGIN_OTP_WINDOW_MS = 2 * 60 * 1000;
 const ADMIN_EMAILS = new Set(['tekebaaweke32@gmail.com']);
 const resolveEffectiveRole = (role, email) => {
@@ -60,7 +58,13 @@ const initiateLoginOtp = async (req, res) => {
       });
     }
 
-    const previousRequest = loginOtpRequests.get(cleanEmail);
+    const [recentLoginOtps] = await db.query(
+      `SELECT created_at FROM otps
+       WHERE email = ? AND purpose = 'login' AND is_used = 0
+       ORDER BY id DESC LIMIT 1`,
+      [cleanEmail]
+    );
+    const previousRequest = recentLoginOtps[0]?.created_at ? new Date(recentLoginOtps[0].created_at).getTime() : null;
     const elapsed = previousRequest ? Date.now() - previousRequest : LOGIN_OTP_WINDOW_MS;
     if (previousRequest && elapsed < LOGIN_OTP_WINDOW_MS) {
       return res.status(200).json({
@@ -73,9 +77,7 @@ const initiateLoginOtp = async (req, res) => {
       });
     }
 
-    await issueOtp({ dbClient: db, email: cleanEmail, phone: user.phone, purpose: 'login', expiresInMinutes: 2 });
-    loginOtpRequests.set(cleanEmail, Date.now());
-    loginOtpAttempts.delete(cleanEmail);
+    await issueOtp({ dbClient: db, email: cleanEmail, phone: user.phone, purpose: 'login', expiresInMinutes: 3 });
     return res.json({ success: true, requires_otp: true, email: cleanEmail, message: 'OTP verification code sent to your email.' });
   } catch (error) {
     console.error('Login OTP initiation error:', error);
@@ -95,33 +97,56 @@ router.post('/verify-login-otp', async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      `SELECT id, expires_at, is_used FROM otps
-       WHERE email = ? AND otp_code = ? AND purpose = 'login' AND is_used = FALSE
-       ORDER BY created_at DESC LIMIT 1`,
-      [cleanEmail, otpCode]
+      `SELECT * FROM otps
+        WHERE email = ? AND is_used = 0 AND purpose = 'login' AND expires_at > NOW()
+       ORDER BY id DESC LIMIT 1`,
+      [cleanEmail]
     );
-    const latestAttempt = loginOtpAttempts.get(cleanEmail) || { count: 0 };
-    if (latestAttempt.count >= 5) return res.status(429).json({ success: false, message: 'Too many invalid attempts. Please request a new code.' });
-    if (!rows[0]) {
-      latestAttempt.count += 1;
-      loginOtpAttempts.set(cleanEmail, latestAttempt);
-      return res.status(400).json({ success: false, message: 'Invalid or expired OTP code.' });
+
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active verification code found. Please request a new code.'
+      });
     }
 
     const otpRecord = rows[0];
-    if (new Date(otpRecord.expires_at) < new Date()) {
-      await db.query('UPDATE otps SET is_used = TRUE WHERE id = ?', [otpRecord.id]);
-      return res.status(400).json({ success: false, message: 'Code expired. Please request a new code.' });
+    if (new Date() > new Date(otpRecord.expires_at)) {
+      await db.query('UPDATE otps SET is_used = 1 WHERE id = ?', [otpRecord.id]);
+      return res.status(400).json({ success: false, error: 'This OTP code has expired. Please request a new one.' });
     }
 
-    await db.query('UPDATE otps SET is_used = TRUE WHERE id = ?', [otpRecord.id]);
+    if (Number(otpRecord.attempts || 0) >= 4) {
+      return res.status(429).json({ success: false, error: 'Too many failed attempts. For your security, please wait 15 minutes before requesting a new code.' });
+    }
+
+    if (String(otpRecord.otp_code).trim() !== otpCode) {
+      const nextAttempts = Number(otpRecord.attempts || 0) + 1;
+      await db.query('UPDATE otps SET attempts = ? WHERE id = ?', [nextAttempts, otpRecord.id]);
+      const remaining = 4 - nextAttempts;
+
+      if (remaining <= 0) {
+        return res.status(429).json({ success: false, error: 'Too many failed attempts. Please wait 15 minutes before trying again.' });
+      }
+
+      return res.status(400).json({ success: false, error: `Invalid OTP code. You have ${remaining} attempt(s) remaining.` });
+    }
+
+    await db.query('UPDATE otps SET is_used = 1 WHERE id = ?', [otpRecord.id]);
+    console.log('--> [SUCCESS] OTP marked as is_used = 1 in database for ID:', otpRecord.id);
     const user = await findLoginUser(cleanEmail);
     if (!user || !user.is_active) return res.status(404).json({ success: false, message: 'No account found with this email.' });
     const safeUser = await getLoginUserDetails(user);
     await db.query("INSERT INTO user_activity_log (user_id, activity_type) VALUES (?, 'login')", [user.id]);
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET || 'your_secret_key', { expiresIn: '7d' });
-    loginOtpAttempts.delete(cleanEmail);
-    return res.json({ success: true, token, user: safeUser, redirect_to: safeUser.has_cv ? 'dashboard' : 'cv-upload' });
+    return res.json({
+      success: true,
+      token,
+      user: safeUser,
+      requiresRoleSelection: true,
+      onboarding_step: 'role_selection',
+      redirect_to: '/select-role',
+    });
   } catch (error) {
     console.error('Login OTP verification error:', error);
     return res.status(500).json({ success: false, message: 'Unable to verify login OTP.' });
@@ -256,10 +281,11 @@ router.get(
 
       const [cvRows] = await db.query('SELECT id FROM cvs WHERE user_id = ? LIMIT 1', [user.id]);
       const [profileRows] = await db.query('SELECT id, profile_completion_percentage, headline, bio, location, city FROM job_seeker_profiles WHERE user_id = ? LIMIT 1', [user.id]);
-      const [companyRows] = await db.query('SELECT id, company_name, industry, location, description FROM company_profiles WHERE employer_id = ? LIMIT 1', [user.id]);
+      const [companyRows] = await db.query('SELECT id, company_name, industry, headquarters_location AS location, about_company AS description FROM employers WHERE user_id = ? OR userId = ? LIMIT 1', [user.id, user.id]);
+      const [householdRows] = await db.query('SELECT id, household_name AS company_name, industry, residence_location AS location, about_household AS description FROM household_employers WHERE user_id = ? LIMIT 1', [user.id]);
       const hasCv = cvRows.length > 0 || Boolean(user.cvFileName || user.resumeName);
       const seekerProfile = profileRows[0];
-      const companyProfile = companyRows[0];
+      const companyProfile = companyRows[0] || householdRows[0];
       const roleWasSelected = Boolean(user.googleNewUser === false || seekerProfile || companyProfile);
       const hasProfile = Boolean(
         user.onboardingProfileCompleted ||
@@ -323,40 +349,48 @@ router.post('/verify-otp', async (req, res) => {
 
   try {
     if (!email || !otp) {
-      return res.status(400).json({ success: false, message: 'Email and OTP are required / ኢሜይል እና OTP ያስፈልጋሉ' });
+      return res.status(400).json({ success: false, message: 'Email and OTP are required.' });
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
     const cleanOtp = String(otp).trim();
 
-    // 1. OTP ኮዱን በ DB መፈለግ - የቅርብ ቀኑ ያልተጠቀሰ እና ጊዜው ያልፈቀደ የሆነ ተራ አንድ ኮድ ብቻ
     const [rows] = await db.query(
-      'SELECT id, otp_code, expires_at, is_used FROM otps WHERE email = ? AND is_used = FALSE ORDER BY created_at DESC LIMIT 1',
+      `SELECT * FROM otps
+       WHERE email = ? AND is_used = 0 AND expires_at > NOW()
+       ORDER BY id DESC LIMIT 1`,
       [cleanEmail]
     );
 
-    if (rows.length === 0) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired OTP code / የተሳሳተ ወይም ጊዜው ያለፈበት OTP' });
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'No active verification code found. Please request a new code.' });
     }
 
     const otpRecord = rows[0];
-    const expiresAt = new Date(otpRecord.expires_at);
-
-    if (new Date() > expiresAt) {
-      await db.query('UPDATE otps SET is_used = TRUE WHERE id = ?', [otpRecord.id]);
-      return res.status(400).json({ success: false, message: 'OTP has expired / የ OTP ጊዜው አልፎበታል' });
+    if (new Date() > new Date(otpRecord.expires_at)) {
+      await db.query('UPDATE otps SET is_used = 1 WHERE id = ?', [otpRecord.id]);
+      return res.status(400).json({ success: false, error: 'This OTP code has expired. Please request a new one.' });
     }
 
-    if (otpRecord.otp_code !== cleanOtp) {
+    if (Number(otpRecord.attempts || 0) >= 4) {
+      return res.status(429).json({ success: false, error: 'Too many failed attempts. For your security, please wait 15 minutes before requesting a new code.' });
+    }
+
+    if (String(otpRecord.otp_code).trim() !== cleanOtp) {
       const nextAttempts = Number(otpRecord.attempts || 0) + 1;
-      await db.query('UPDATE otps SET attempts = ?, is_used = ? WHERE id = ?', [nextAttempts, nextAttempts >= 5, otpRecord.id]);
-      return res.status(400).json({ success: false, message: 'Invalid or expired OTP code / የተሳሳተ ወይም ጊዜው ያለፈበት OTP' });
+      await db.query('UPDATE otps SET attempts = ? WHERE id = ?', [nextAttempts, otpRecord.id]);
+      const remaining = 4 - nextAttempts;
+
+      if (remaining <= 0) {
+        return res.status(429).json({ success: false, error: 'Too many failed attempts. Please wait 15 minutes before trying again.' });
+      }
+
+      return res.status(400).json({ success: false, error: `Invalid OTP code. You have ${remaining} attempt(s) remaining.` });
     }
 
-    // 2. OTP ከተረጋገጠ በኋላ ከ DB መሰረዝ አይደለም - እንደ ተጠቃሚ ምልክት ያድርጉ
-    await db.query('UPDATE otps SET is_used = TRUE WHERE id = ?', [otpRecord.id]);
+    await db.query('UPDATE otps SET is_used = 1 WHERE id = ?', [otpRecord.id]);
+    console.log('--> [SUCCESS] OTP marked as is_used = 1 in database for ID:', otpRecord.id);
 
-    // 3. የተጠቃሚውን መረጃ ማውጣት
     const [userRows] = await db.query(
       'SELECT id, full_name, email, role, is_active, last_active_page, last_state_payload FROM users WHERE email = ? LIMIT 1',
       [cleanEmail]
@@ -383,21 +417,19 @@ router.post('/verify-otp', async (req, res) => {
     user.has_cv = cvRows.length > 0;
     user.onboarding_step = user.role === 'job_seeker' && !user.has_cv ? 'cv_upload' : null;
 
-    // 4. JWT Token ማዘጋጀት
     const token = jwt.sign(
       { id: user.id, role: user.role, email: user.email },
       process.env.JWT_SECRET || 'your_secret_key',
       { expiresIn: '7d' }
     );
 
-    // 5. ተጠቃሚው Role የመረጠ መሆኑን ማረጋገጥ
     const requiresRoleSelection = !user.role || user.role === 'pending';
     user.onboardingRoleSelected = !requiresRoleSelection;
     user.onboardingCvUploaded = user.has_cv;
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: 'OTP verified successfully / OTP በትክክል ተረጋገጠ!',
+      message: 'OTP verified successfully!',
       token,
       user: { ...user, is_verified: true, isEmailVerified: true },
       requiresRoleSelection
@@ -405,7 +437,7 @@ router.post('/verify-otp', async (req, res) => {
 
   } catch (error) {
     console.error('OTP Verification Error:', error);
-    res.status(500).json({ success: false, message: error.message || 'Server error' });
+    return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
 });
 
@@ -425,7 +457,15 @@ router.post('/resend-otp', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Account not found.' });
     }
     const cleanEmail = email.trim().toLowerCase();
-    const previousRequest = purpose === 'login' ? loginOtpRequests.get(cleanEmail) : null;
+    const [recentLoginOtps] = purpose === 'login'
+      ? await db.query(
+        `SELECT created_at FROM otps
+         WHERE email = ? AND purpose = 'login' AND is_used = 0
+         ORDER BY id DESC LIMIT 1`,
+        [cleanEmail]
+      )
+      : [[]];
+    const previousRequest = recentLoginOtps[0]?.created_at ? new Date(recentLoginOtps[0].created_at).getTime() : null;
     const elapsed = previousRequest ? Date.now() - previousRequest : LOGIN_OTP_WINDOW_MS;
     if (previousRequest && elapsed < LOGIN_OTP_WINDOW_MS) {
       return res.status(200).json({
@@ -437,11 +477,7 @@ router.post('/resend-otp', async (req, res) => {
         active_code: true,
       });
     }
-    const { delivery } = await issueOtp({ dbClient: db, email: cleanEmail, phone: users[0].phone, purpose, expiresInMinutes: purpose === 'login' ? 2 : 3 });
-    if (purpose === 'login') {
-      loginOtpRequests.set(cleanEmail, Date.now());
-      loginOtpAttempts.delete(cleanEmail);
-    }
+    const { delivery } = await issueOtp({ dbClient: db, email: cleanEmail, phone: users[0].phone, purpose, expiresInMinutes: 3 });
 
     res.status(200).json({ 
       success: true,
@@ -454,7 +490,7 @@ router.post('/resend-otp', async (req, res) => {
     if (error.code === 'OTP_RATE_LIMITED') {
       return res.status(429).json({ success: false, message: error.message });
     }
-    res.status(500).json({ success: false, message: 'Failed to resend OTP / OTP እንደገና መላክ አልተቻለም' });
+    res.status(500).json({ success: false, message: 'Failed to resend OTP.' });
   }
 });
 
@@ -509,6 +545,35 @@ router.post(['/select-role', '/set-role'], async (req, res) => {
       "INSERT INTO user_activity_log (user_id, activity_type) VALUES (?, 'role_selected')",
       [targetUser.id]
     );
+
+    let redirect_to = null;
+    let onboarding_step = null;
+    if (role === 'job_seeker') {
+      const [cvRows] = await connection.execute('SELECT id FROM cvs WHERE user_id = ? AND is_active = TRUE LIMIT 1', [targetUser.id]);
+      const [profileRows] = await connection.execute('SELECT id, headline, bio, location, city FROM job_seeker_profiles WHERE user_id = ? LIMIT 1', [targetUser.id]);
+      if (cvRows.length === 0) {
+        redirect_to = '/seeker/cv-upload';
+        onboarding_step = 'cv_upload';
+      } else if (!profileRows.length || !profileRows[0].headline || !profileRows[0].bio || !profileRows[0].location || !profileRows[0].city) {
+        redirect_to = '/seeker/personal-info';
+        onboarding_step = 'personal_info';
+      } else {
+        redirect_to = '/seeker/dashboard';
+        onboarding_step = null;
+      }
+    } else if (role === 'employer') {
+      const [companyRows] = await connection.execute('SELECT id, company_name, tin_number, trade_license_document FROM employers WHERE user_id = ? OR userId = ? LIMIT 1', [targetUser.id, targetUser.id]);
+      const [householdRows] = await connection.execute('SELECT id, household_name FROM household_employers WHERE user_id = ? LIMIT 1', [targetUser.id]);
+      const employerProfile = companyRows[0] || householdRows[0];
+      if (!employerProfile || (!employerProfile.company_name && !employerProfile.household_name) || (role === 'employer' && !householdRows.length && (!employerProfile.tin_number || !employerProfile.trade_license_document))) {
+        redirect_to = '/employer/onboarding';
+        onboarding_step = 'company_legal';
+      } else {
+        redirect_to = '/employer/dashboard';
+        onboarding_step = null;
+      }
+    }
+
     await connection.commit();
 
     const token = jwt.sign(
@@ -528,7 +593,9 @@ router.post(['/select-role', '/set-role'], async (req, res) => {
         role,
         is_verified: Boolean(targetUser.is_verified),
       },
-      token
+      token,
+      redirect_to,
+      onboarding_step,
     });
 
   } catch (error) {

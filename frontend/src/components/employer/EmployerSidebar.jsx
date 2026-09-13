@@ -50,11 +50,6 @@ export default function EmployerSidebar({ active, onSelect, onLogout, applicatio
         ))}
       </nav>
 
-      <div className="mt-4 shrink-0 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-700">AI Matching Engine</p>
-        <p className="mt-2 text-xs leading-5 text-blue-700/80">Rank candidates using skills, experience, education, and fit.</p>
-      </div>
-
       <button type="button" onClick={onLogout} className="mt-4 flex w-full shrink-0 items-center gap-3 rounded-xl border border-red-100 px-4 py-3 text-left text-sm font-bold text-red-600 transition hover:bg-red-50">
         <LogOut className="h-4 w-4" />
         Logout

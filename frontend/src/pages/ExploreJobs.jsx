@@ -1514,65 +1514,91 @@ export default function ExploreJobsPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const fromDashboard = location.state?.fromDashboard === true || searchParams.get('from') === 'dashboard';
-  const [jobs, setJobs] = useState(() => {
-    try {
-      const employerJobs = JSON.parse(
-        localStorage.getItem("employerJobs") || "[]",
-      );
-      const publishedJobs = employerJobs
-        .filter((job) => job.status === "published")
-        .map((job) => ({
-          ...job,
-          company: job.company || "Employer company",
-          location:
-            job.location || job.locationValue || "Location not specified",
-          locationValue: job.locationValue || job.location || "",
-          type: job.type || job.job_type || "Full-time",
-          workplace: job.workplace || job.work_mode || "Hybrid",
-          experienceLevel:
-            job.experienceLevel || `${job.years_of_experience_min || 0}+ years`,
-          education: job.education || job.required_education || "Any",
-          sector: job.sector || job.category || "Other",
-          tags: Array.isArray(job.tags)
-            ? job.tags
-            : String(job.required_skills || "")
-                .split(",")
-                .map((skill) => skill.trim())
-                .filter(Boolean),
-          shortDescription: job.shortDescription || job.description || "",
-          fullDescription: job.fullDescription || job.description || "",
-          deadline: job.deadline || job.application_deadline || "No deadline",
-          deadlineDate: job.deadlineDate || job.application_deadline || "",
-          postedAt: job.postedAt || `Posted ${job.created_at || "recently"}`,
-          postedHoursAgo: Number(job.postedHoursAgo) || 0,
-          priorityRank: Number(job.priorityRank) || 1,
-          salaryValue: Number(job.salaryValue) || 0,
-          aiMatchScore: Number(job.aiMatchScore) || 0,
-          matchReason:
-            job.matchReason ||
-            "Published by an employer on the Job Matching platform.",
-        }));
-      return [
-        ...publishedJobs,
-        ...initialJobs.filter(
-          (job) =>
-            !publishedJobs.some((publishedJob) => publishedJob.id === job.id),
-        ),
-      ];
-    } catch (error) {
-      console.error("Unable to load employer jobs:", error);
-      return initialJobs;
-    }
-  });
+  const normalizeApiJob = (job) => {
+    const rawTags = Array.isArray(job.tags)
+      ? job.tags
+      : Array.isArray(job.required_skills)
+        ? job.required_skills
+        : String(job.required_skills || "")
+            .split(",")
+            .map((skill) => skill.trim())
+            .filter(Boolean);
+
+    const normalizedSalaryMin = Number(job.salary_min ?? job.salaryMin ?? 0);
+    const normalizedSalaryMax = Number(job.salary_max ?? job.salaryMax ?? 0);
+    const priceText =
+      normalizedSalaryMin || normalizedSalaryMax
+        ? `${job.currency || "ETB"} ${normalizedSalaryMin.toLocaleString()} - ${normalizedSalaryMax.toLocaleString()} / mo`
+        : job.salary || "Compensation disclosed upon application";
+
+    return {
+      ...job,
+      id: job.id || job.jobId,
+      company: job.company || job.company_name || "Employer company",
+      location: job.location || job.locationValue || "Location not specified",
+      locationValue: job.locationValue || job.location || "",
+      type: job.type || job.job_type || "Full-time",
+      workplace: job.workplace || job.work_mode || "Hybrid",
+      experienceLevel:
+        job.experienceLevel ||
+        job.experience_level ||
+        "Mid-level",
+      education: job.education || job.required_education || "Any",
+      sector: job.sector || job.category || "Other",
+      gender: job.gender ||
+        (job.gender_preference === "male"
+          ? "Male"
+          : job.gender_preference === "female"
+            ? "Female"
+            : "Any Gender"),
+      vacancies: Number(job.vacancies ?? job.vacancy_count ?? 1),
+      deadline: job.deadline || job.application_deadline || "No deadline",
+      deadlineDate: job.deadlineDate || job.application_deadline || "",
+      postedAt: job.postedAt || (job.created_at ? `Posted ${new Date(job.created_at).toLocaleDateString()}` : "Recently posted"),
+      postedHoursAgo: Number(job.postedHoursAgo) || 0,
+      priorityRank: Number(job.priorityRank) || 1,
+      salaryValue: Number(job.salaryValue ?? normalizedSalaryMin ?? 0),
+      salary: priceText,
+      aiMatchScore: Number(job.aiMatchScore || 0),
+      matchReason:
+        job.matchReason ||
+        "Published by an employer on the Job Matching platform.",
+      tags: rawTags,
+      shortDescription: job.shortDescription || job.description || "",
+      fullDescription: job.fullDescription || job.description || "",
+      responsibilities: Array.isArray(job.responsibilities)
+        ? job.responsibilities
+        : [],
+      requirements: Array.isArray(job.requirements)
+        ? job.requirements
+        : [],
+      benefits: Array.isArray(job.benefits) ? job.benefits : [],
+    };
+  };
+  const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState("");
   useEffect(() => {
     let mounted = true;
-    api.get('/jobs').then(({ data }) => {
-      if (!mounted || !data.jobs?.length) return;
-      const published = data.jobs.map((job) => ({ ...job, company: job.company_name || 'Employer company', workplace: job.work_mode || 'hybrid', type: job.job_type || 'full-time', sector: job.category || 'Other', tags: String(job.required_skills || '').split(',').map((skill) => skill.trim()).filter(Boolean), shortDescription: job.description || '', fullDescription: job.description || '', deadline: job.application_deadline || 'No deadline', postedAt: 'Recently posted', aiMatchScore: 0 }));
-      setJobs((current) => [...published, ...current.filter((item) => !published.some((job) => String(job.id) === String(item.id))) ]);
-    }).catch(() => {});
-    return () => { mounted = false; };
+
+    const loadJobs = async () => {
+      try {
+        const { data } = await api.get('/jobs');
+        if (!mounted) return;
+
+        const rawJobs = Array.isArray(data) ? data : data.jobs || [];
+        setJobs(rawJobs.map(normalizeApiJob));
+      } catch (error) {
+        console.error("Unable to load jobs from API:", error);
+        if (mounted) {
+          setJobs(initialJobs);
+        }
+      }
+    };
+
+    loadJobs();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Pagination / Limit State

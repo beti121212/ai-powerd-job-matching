@@ -1,18 +1,46 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const controller = require('../controllers/employerController');
+const db = require('../connection');
 
 const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
 const authenticate = (req, res, next) => {
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!token) return res.status(401).json({ success: false, message: 'Authentication required.' });
-  try { req.user = jwt.verify(token, process.env.JWT_SECRET || 'your_super_secret_key_here'); return next(); }
+  try { req.user = jwt.verify(token, JWT_SECRET); return next(); }
   catch { return res.status(401).json({ success: false, message: 'Invalid or expired token.' }); }
 };
-const employerOnly = (req, res, next) => ['employer', 'company', 'recruiter'].includes(String(req.user.role || '').toLowerCase()) ? next() : res.status(403).json({ success: false, message: 'Employer access required.' });
+const employerOnly = async (req, res, next) => {
+  const employerRoles = ['employer', 'company', 'recruiter'];
+  if (employerRoles.includes(String(req.user.role || '').toLowerCase())) return next();
+
+  const userId = req.user.id || req.user.userId || req.user.user_id || req.user.sub;
+  if (!userId) return res.status(403).json({ success: false, message: 'Employer access required.' });
+
+  try {
+    const [rows] = await db.query('SELECT role FROM users WHERE id = ? LIMIT 1', [userId]);
+    if (employerRoles.includes(String(rows[0]?.role || '').toLowerCase())) {
+      req.user.role = rows[0].role;
+      return next();
+    }
+  } catch (error) {
+    console.error('Employer role lookup failed:', error.message);
+  }
+
+  return res.status(403).json({ success: false, message: 'Employer access required.' });
+};
 const isEmployerApiPath = (path) => path === '/jobs' || path.startsWith('/jobs/') || path === '/interviews' || path.startsWith('/interviews/') || path === '/employer' || path.startsWith('/employer/') || path === '/applications' || path.startsWith('/applications/');
 
-router.use((req, res, next) => isEmployerApiPath(req.path) ? authenticate(req, res, () => employerOnly(req, res, next)) : next());
+router.use((req, res, next) => {
+  const isPublicJobsListing = req.path === '/jobs' && req.method === 'GET';
+
+  if (isPublicJobsListing) return next();
+
+  return isEmployerApiPath(req.path)
+    ? authenticate(req, res, (error) => error ? next(error) : employerOnly(req, res, next))
+    : next();
+});
 router.get('/employer/profile', controller.getCompanyProfile);
 router.put('/employer/profile', controller.updateCompanyProfile);
 router.post('/employer/profile', controller.updateCompanyProfile);

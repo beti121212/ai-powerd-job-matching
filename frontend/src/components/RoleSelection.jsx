@@ -8,6 +8,7 @@ const RoleSelection = () => {
   const { setSession } = useAuth();
   const [selectedRole, setSelectedRole] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
 
@@ -49,48 +50,30 @@ const RoleSelection = () => {
     }
 
     const normalizedRole = role === "seeker" ? "job_seeker" : role;
+    const storedUser = localStorage.getItem("user");
+    const existingUser = storedUser ? JSON.parse(storedUser) : {};
+    const updatedUser = {
+      ...existingUser,
+      role: normalizedRole,
+      userType: normalizedRole,
+      onboardingRoleSelected: true,
+      is_verified: existingUser.is_verified ?? existingUser.isVerified ?? true,
+    };
+    const token = localStorage.getItem("token");
 
-    try {
-      const storedUser = localStorage.getItem("user");
-      const existingUser = storedUser ? JSON.parse(storedUser) : {};
-      const userId = existingUser.id || existingUser.userId;
-      if (!userId) throw new Error("A verified user is required to select a role.");
+    console.log("--> Navigating with Role:", normalizedRole);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setSession({ token, user: updatedUser });
+    navigate(normalizedRole === "employer" ? "/employer/onboarding" : "/seeker/cv-upload", { replace: true });
 
-      const response = await fetch(`${API_URL.replace(/\/$/, "")}/auth/select-role`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(localStorage.getItem("token")
-              ? { Authorization: "Bearer " + localStorage.getItem("token") }
-              : {}),
-          },
-          body: JSON.stringify({ userId, role: normalizedRole }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.user || !data.token) throw new Error(data.error || "Unable to save role.");
-
-      const updatedUser = {
-        ...existingUser,
-        ...data.user,
-        role: normalizedRole,
-        onboardingRoleSelected: true,
-        onboardingCvUploaded: false,
-        onboardingProfileCompleted: false,
-        is_verified: data.user.is_verified ?? existingUser.is_verified ?? true,
-      };
-
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      localStorage.setItem("token", data.token);
-      setSession({ token: data.token, user: updatedUser });
-
-      if (normalizedRole === "employer") {
-        navigate("/employer/onboarding", { replace: true });
-      } else {
-        navigate("/seeker/cv-upload", { replace: true });
-      }
-    } catch (err) {
-      console.error("Error updating user role:", err);
-        setError(err.message || "Unable to save role. Please try again.");
+    // Persist the role in the background; navigation must not depend on this request.
+    const userId = existingUser.id || existingUser.userId;
+    if (userId && token) {
+      fetch(`${API_URL.replace(/\/$/, "")}/auth/select-role`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId, role: normalizedRole }),
+      }).catch((error) => console.warn("Background role persistence failed:", error.message));
     }
   };
 
@@ -140,12 +123,6 @@ const RoleSelection = () => {
 
           {/* Right: Role Cards */}
           <div className="lg:col-span-7">
-            {error && (
-              <div className="mb-6 p-3 bg-red-50 text-red-600 rounded-xl font-medium text-center border border-red-200">
-                {error}
-              </div>
-            )}
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               {/* Job Seeker Card */}
@@ -202,49 +179,24 @@ const RoleSelection = () => {
                   </ul>
                 </div>
 
-                <div className="mt-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                        selectedRole === "seeker"
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {selectedRole === "seeker" ? "Selected" : "Select"}
-                    </span>
-                    {selectedRole === "seeker" && (
-                      <span className="text-xs text-slate-500">
-                        You're choosing this role
-                      </span>
-                    )}
-                  </div>
-
+                <div className="mt-8 flex items-center justify-center border-t border-slate-100 pt-4">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRoleCardSelect("seeker");
                     }}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition cursor-pointer ${
+                    disabled={isSubmitting}
+                    className={`flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-bold transition-all duration-200 ${
                       selectedRole === "seeker"
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
-                        : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700 active:scale-[0.98]"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
-                    <span>Continue</span>
+                    <span>{isSubmitting && selectedRole === "seeker" ? "Saving..." : "Continue as Job Seeker"}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
-
-                {/* Active badge */}
-                {selectedRole === "seeker" && (
-                  <div className="absolute -top-3 -right-3">
-                    <div className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-bold shadow">
-                      Active
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Employer Card */}
@@ -301,49 +253,24 @@ const RoleSelection = () => {
                   </ul>
                 </div>
 
-                <div className="mt-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                        selectedRole === "employer"
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {selectedRole === "employer" ? "Selected" : "Select"}
-                    </span>
-                    {selectedRole === "employer" && (
-                      <span className="text-xs text-slate-500">
-                        You're choosing this role
-                      </span>
-                    )}
-                  </div>
-
+                <div className="mt-8 flex items-center justify-center border-t border-slate-100 pt-4">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRoleCardSelect("employer");
                     }}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition cursor-pointer ${
+                    disabled={isSubmitting}
+                    className={`flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-bold transition-all duration-200 ${
                       selectedRole === "employer"
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
-                        : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700 active:scale-[0.98]"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
-                    <span>Continue</span>
+                    <span>{isSubmitting && selectedRole === "employer" ? "Saving..." : "Continue as Employer"}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
-
-                {/* Active badge */}
-                {selectedRole === "employer" && (
-                  <div className="absolute -top-3 -right-3">
-                    <div className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-bold shadow">
-                      Active
-                    </div>
-                  </div>
-                )}
               </div>
 
             </div>
@@ -353,9 +280,10 @@ const RoleSelection = () => {
               <button
                 type="button"
                 onClick={() => handleRoleSubmit()}
+                disabled={isSubmitting}
                 className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl text-base flex items-center justify-center gap-2 shadow-lg cursor-pointer"
               >
-                <span>Continue</span>
+                <span>{isSubmitting ? "Saving..." : "Continue"}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

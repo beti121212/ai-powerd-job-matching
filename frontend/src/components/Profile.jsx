@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Loader2, X } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../hooks/useToast.js';
 import { notifyProfileUpdated } from '../utils/profileUpdateEvent';
@@ -86,9 +86,31 @@ const isRecognizableJobTitle = (value) => {
 
 const validateProfile = (data) => {
   const errors = {};
-  if (!/^[A-Za-z][A-Za-z ]{2,}$/.test(String(data.fullName || '').trim())) errors.fullName = 'Use at least 3 letters and spaces only.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email || '').trim())) errors.email = 'Enter a valid email address.';
-  if (!/^(?:\+251|0)9\d{8}$|^\+?[1-9]\d{7,14}$/.test(String(data.phone || '').replace(/[\s()-]/g, ''))) errors.phone = 'Enter a valid Ethiopian or international phone number.';
+
+  const fullName = String(data.fullName || '').trim();
+  if (!fullName) {
+    errors.fullName = 'Full Name is required.';
+  } else if (fullName.length < 2) {
+    errors.fullName = 'Full Name must be at least 2 characters.';
+  } else if (!/^[a-zA-Z\s]+$/.test(fullName)) {
+    errors.fullName = 'Full Name must contain letters only (no numbers or symbols).';
+  }
+
+  const email = String(data.email || '').trim();
+  if (!email) {
+    errors.email = 'Email address is required.';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.email = 'Please enter a valid email address.';
+  }
+
+  const phone = String(data.phone || '').replace(/[\s()-]/g, '');
+  const phoneDigits = String(phone || '').replace(/\D/g, '');
+  if (!phone) {
+    errors.phone = 'Phone number is required.';
+  } else if (!/^\+?[0-9\s()-]+$/.test(phone) || phoneDigits.length < 9 || phoneDigits.length > 10) {
+    errors.phone = 'Please enter a valid phone number (e.g. 0952748973).';
+  }
+
   if (!String(data.city || '').trim()) errors.city = 'City or location is required.';
   if (!isRecognizableJobTitle(data.preferredJob)) errors.desiredPosition = invalidJobTitleMessage;
   if (!jobCategories.includes(data.jobCategory)) errors.jobCategory = 'Select a primary job category.';
@@ -105,7 +127,7 @@ const validateProfile = (data) => {
   return errors;
 };
 
-const FieldError = ({ message }) => message ? <p className="animate-[fieldShake_0.35s_ease-in-out] mt-2 text-xs font-bold text-rose-600" role="alert">{message}</p> : null;
+const FieldError = ({ message }) => message ? <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-600 animate-fade-in" role="alert"><span>⚠️</span><span>{message}</span></p> : null;
 
 const Profile = ({ userData = {}, onContinue }) => {
   const navigate = useNavigate();
@@ -152,7 +174,14 @@ const Profile = ({ userData = {}, onContinue }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [errors, setErrors] = useState({});
-  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    if (!Object.keys(errors).length) return undefined;
+    const timer = window.setTimeout(() => {
+      setErrors({});
+    }, 10000);
+    return () => window.clearTimeout(timer);
+  }, [errors]);
 
   // Personal Profile Data State
   const [profileData, setProfileData] = useState({
@@ -235,7 +264,12 @@ const Profile = ({ userData = {}, onContinue }) => {
       jobType: 'jobType',
     };
     const errorField = errorFields[field] || field;
-    setErrors((current) => ({ ...current, [field]: undefined, [errorField]: undefined }));
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      delete next[errorField];
+      return next;
+    });
   };
 
   const validateField = (field) => {
@@ -245,12 +279,17 @@ const Profile = ({ userData = {}, onContinue }) => {
   const inputClass = (field) => `${fieldClass} ${errors[field] ? 'has-error animate-[fieldShake_0.35s_ease-in-out] border-rose-500 bg-rose-50/40 ring-4 ring-rose-400/60 focus:border-rose-600 focus:ring-rose-500/40' : ''}`;
   const focusFirstInvalid = (validationErrors) => {
     const firstField = Object.keys(validationErrors)[0];
-    if (!firstField) return;
+    if (!firstField || firstField === 'form') return;
+
     window.requestAnimationFrame(() => {
-      const element = document.querySelector('#error-banner, [role="alert"], .text-red-500, .border-red-500') || document.querySelector(`[data-profile-field="${firstField}"]`) || document.querySelector('.has-error, [aria-invalid="true"]') || document.querySelector('[data-profile-field="fullName"]');
+      const element = document.querySelector('input:invalid, select:invalid, textarea:invalid, .border-red-500, input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"]')
+        || document.querySelector(`[data-profile-field="${firstField}"]`);
+
       if (!element) return;
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (typeof element.focus === 'function') element.focus({ preventScroll: true });
+      window.setTimeout(() => {
+        if (typeof element.focus === 'function') element.focus({ preventScroll: true });
+      }, 0);
     });
   };
   const scrollToSuccess = () => {
@@ -258,21 +297,8 @@ const Profile = ({ userData = {}, onContinue }) => {
       const scrollContainer = document.querySelector('main, .overflow-y-auto, #dashboard-content') || document.documentElement || document.body;
       if (typeof scrollContainer.scrollTo === 'function') scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      const successBanner = document.getElementById('success-banner') || document.querySelector('[role="status"]');
-      if (successBanner) successBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 50);
   };
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = window.setTimeout(() => setToast(''), 5000);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  useEffect(() => {
-    if (!Object.keys(errors).some((key) => errors[key])) return undefined;
-    const timer = window.setTimeout(() => setErrors({}), 5000);
-    return () => window.clearTimeout(timer);
-  }, [errors]);
 
   // Calculate profile completion dynamically
   const completionPercentage = useMemo(() => {
@@ -297,7 +323,7 @@ const Profile = ({ userData = {}, onContinue }) => {
 
     const completed = fields.filter(Boolean).length;
     return Math.round((completed / fields.length) * 100);
-  }, [profileData, educationList, experienceList, languages]);
+  }, [profileData, educationList, experienceList, languages, skills.length]);
 
   // Handlers for Experience
   const handleAddExperience = () => {
@@ -338,14 +364,50 @@ const Profile = ({ userData = {}, onContinue }) => {
     setLanguages(languages.filter((lang) => lang !== langToRemove));
   };
 
+  const useExistingInformation = () => {
+    try {
+      const existingProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      const existingUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const nextData = {
+        fullName: existingProfile.fullName || existingProfile.full_name || existingUser.full_name || profileData.fullName,
+        firstName: existingProfile.firstName || existingProfile.first_name || (String(existingProfile.fullName || existingUser.full_name || '').split(/\s+/)[0] || ''),
+        lastName: existingProfile.lastName || existingProfile.last_name || (String(existingProfile.fullName || existingUser.full_name || '').split(/\s+/).slice(1).join(' ') || ''),
+        email: existingProfile.email || existingUser.email || profileData.email,
+        phone: existingProfile.phone || existingUser.phone || profileData.phone,
+        city: existingProfile.city || existingProfile.location || profileData.city,
+        country: existingProfile.country || profileData.country,
+        github: existingProfile.github || '',
+        linkedin: existingProfile.linkedin || '',
+        portfolio: existingProfile.portfolio || '',
+        jobCategory: existingProfile.jobCategory || existingProfile.job_category || '',
+        preferredJob: existingProfile.preferredJob || existingProfile.desiredPosition || existingProfile.headline || '',
+        jobType: existingProfile.jobType || existingProfile.preferred_job_type || existingProfile.employmentType || '',
+        salaryExpectation: existingProfile.salaryExpectation || formatSalaryRange(existingProfile.salaryExpectationMin || existingProfile.salary_expectation_min || '', existingProfile.salaryExpectationMax || existingProfile.salary_expectation_max || ''),
+        salaryExpectationMax: existingProfile.salaryExpectationMax || existingProfile.salary_expectation_max || '',
+        preferredCity: existingProfile.preferredCity || '',
+        preferredWorkSetup: existingProfile.preferredWorkSetup || existingProfile.workSetup || existingProfile.preferred_work_mode || '',
+        experienceLevel: existingProfile.experienceLevel || existingProfile.experience_level || '',
+        educationLevel: existingProfile.educationLevel || existingProfile.education_level || '',
+        bio: existingProfile.bio || '',
+      };
+      setProfileData((current) => ({ ...current, ...nextData }));
+      if (Array.isArray(existingProfile.education)) setEducationList(existingProfile.education);
+      if (Array.isArray(existingProfile.experience)) setExperienceList(existingProfile.experience);
+      if (Array.isArray(existingProfile.skills)) setSkills(existingProfile.skills.filter((skill) => !excludedProfileSkills.has(String(skill).trim().toLowerCase())));
+      if (Array.isArray(existingProfile.languages)) setLanguages(existingProfile.languages);
+      showSuccess('Existing information loaded.');
+    } catch (error) {
+      showError('No saved profile information is available yet.');
+    }
+  };
+
   // Profile Save Handler
   const handleSaveProfile = async (redirect = false) => {
     const validationErrors = validateProfile(profileData);
     if (Object.keys(validationErrors).length) {
       setErrors(validationErrors);
-      setToast(validationErrors.desiredPosition || 'Please complete the required profile fields.');
+      showError('Please complete the highlighted required fields before saving.');
       focusFirstInvalid(validationErrors);
-      showError('⚠️ Please correct the highlighted errors before saving.');
       scrollToFeedback('error');
       return { success: false, errors: validationErrors };
     }
@@ -353,7 +415,6 @@ const Profile = ({ userData = {}, onContinue }) => {
     setIsSaving(true);
     setIsNavigating(redirect);
     setErrors({});
-    setToast('');
     const fullProfile = {
       ...profileData,
       userId: user?.id || user?.userId || user?.user_id || JSON.parse(localStorage.getItem('user') || '{}')?.id || JSON.parse(localStorage.getItem('user') || '{}')?.userId,
@@ -403,14 +464,11 @@ const Profile = ({ userData = {}, onContinue }) => {
       scrollToSuccess();
     } catch (error) {
       persistLocally();
-      const errorMessage = error?.message || 'Unable to save your profile to the database. Please try again.';
-      const saveError = { form: errorMessage };
-      setErrors(saveError);
-      setToast(errorMessage);
-      focusFirstInvalid(saveError);
+      const errorMessage = 'Unable to save personal information . Please try again.';
+      setErrors({});
+      showError(errorMessage);
       setIsSaved(false);
       setIsNavigating(false);
-      showError('⚠️ Please correct the highlighted errors before saving.');
       scrollToFeedback('error');
       return { success: false, localOnly: true, data: fullProfile };
     } finally {
@@ -434,9 +492,8 @@ const Profile = ({ userData = {}, onContinue }) => {
   };
 
   return (
-    <div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-100/80 text-slate-900 dark:bg-slate-950 lg:flex lg:h-screen lg:overflow-hidden">
-      {isSaved && <div id="floating-success-toast" className="fixed top-6 left-1/2 z-[9999] flex -translate-x-1/2 items-center gap-3 rounded-2xl bg-emerald-600 px-6 py-3.5 font-semibold text-white shadow-2xl animate-bounce"><CheckCircle2 className="h-5 w-5 text-white" /><span>Your profile has been saved successfully!</span></div>}
-      <section className="relative flex min-h-[26rem] w-full items-center overflow-hidden bg-slate-100 px-5 py-10 dark:bg-slate-950 sm:px-10 lg:h-screen lg:min-h-0 lg:w-[45%] lg:px-12 lg:py-16">
+    <div className="min-h-screen min-w-0 overflow-x-hidden bg-white text-slate-900 dark:bg-white lg:flex">
+      <section className="relative flex min-h-[26rem] w-full items-center overflow-hidden bg-white px-5 py-10 dark:bg-white sm:px-10 lg:min-h-0 lg:w-[45%] lg:px-12 lg:py-16">
         <div className="relative mx-auto flex w-full max-w-lg flex-col items-center text-center lg:items-start lg:text-left">
           <div className="mb-8 max-w-md">
             <span className="mb-3 inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-widest text-blue-700 dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-300">
@@ -449,31 +506,38 @@ const Profile = ({ userData = {}, onContinue }) => {
               Add your experience and preferences so we can find roles that fit your strengths.
             </p>
           </div>
-          <div className="relative flex w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-200/50 bg-slate-50/50 p-6 dark:border-slate-800 dark:bg-slate-900/30 sm:p-8 lg:min-h-[25rem]">
+          <div className="relative flex w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-200/50 bg-white p-6 dark:border-slate-800 dark:bg-white sm:p-8 lg:min-h-[25rem]">
             <img src={personalImage} alt="Personal profile setup" className="h-auto max-h-[20rem] w-full max-w-md object-contain drop-shadow-lg sm:max-h-[24rem]" />
           </div>
         </div>
       </section>
 
-      <section className="h-auto min-w-0 w-full overflow-x-hidden overflow-y-auto bg-[#f8fbfd] lg:h-screen lg:w-[55%]">
+      <section className="h-auto min-w-0 w-full overflow-x-hidden bg-[#f8fbfd] lg:w-[55%]">
       <div className="information-page profile-readable mx-auto min-w-0 max-w-3xl space-y-7 overflow-x-hidden px-5 py-8 pb-12 leading-relaxed sm:px-8 lg:px-10">
       <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Personal Profile Setup</h1>
-      {toast && <div role="alert" className="animate-[alertPulse_0.45s_ease-out] sticky top-3 z-10 flex items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 shadow-sm"><span>{toast}</span><button type="button" onClick={() => setToast('')} className="min-h-0 rounded-md p-1 text-amber-700 hover:bg-amber-100" aria-label="Dismiss alert"><X className="h-4 w-4" /></button></div>}
       {isSaved && <div id="success-banner" role="status" className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700"><CheckCircle2 className="h-5 w-5" />your profile saved succussfuly</div>}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
         <div className="mb-2 flex items-center justify-between text-sm font-bold text-slate-800"><span>Profile Completion</span><span className="text-blue-700">{completionPercentage}%</span></div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600 transition-all duration-500" style={{ width: `${completionPercentage}%` }} /></div>
+        <div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-blue-600 transition-all duration-500" style={{ width: `${completionPercentage}%` }} /></div>
       </div>
 
       {/* Personal Information */}
-      <div className="space-y-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xl transition-shadow duration-300 hover:shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-10">
-        <h3 className="text-lg font-bold text-slate-800 border-b pb-3 border-slate-200">Personal Information</h3>
+      <div className="space-y-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xl transition-shadow duration-300 hover:shadow-2xl dark:border-slate-800 dark:bg-white sm:p-10">
+        <div className="flex items-center justify-between border-b pb-3">
+          <h3 className="text-lg font-bold text-slate-800">Personal Information</h3>
+          <button type="button" onClick={useExistingInformation} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-slate-700 transition hover:bg-slate-50 hover:text-blue-700">Use Existing Information</button>
+        </div>
 
         <div className="grid grid-cols-1 gap-6 text-sm md:grid-cols-2">
           <div className="md:col-span-2">
             <label className={labelClass}>Full Name</label>
             <input data-profile-field="fullName" aria-invalid={Boolean(errors.fullName)} type="text" placeholder="Your full name" value={profileData.fullName} onChange={(e) => updateProfileField('fullName', e.target.value)} onBlur={() => validateField('fullName')} className={inputClass('fullName')} />
-            <FieldError message={errors.fullName} />
+            {errors.fullName && (
+              <p className="text-xs text-rose-600 font-medium mt-1.5 flex items-center gap-1">
+                <span>⚠️</span>
+                <span>{errors.fullName}</span>
+              </p>
+            )}
           </div>
           <div>
             <label className={labelClass}>Email</label>
@@ -485,7 +549,12 @@ const Profile = ({ userData = {}, onContinue }) => {
               className={inputClass('email')}
               onBlur={() => validateField('email')}
             />
-            <FieldError message={errors.email} />
+            {errors.email && (
+              <p className="text-xs text-rose-600 font-medium mt-1.5 flex items-center gap-1">
+                <span>⚠️</span>
+                <span>{errors.email}</span>
+              </p>
+            )}
           </div>
 
           <div>
@@ -500,7 +569,12 @@ const Profile = ({ userData = {}, onContinue }) => {
                 onBlur={() => validateField('phone')}
               />
             </div>
-            <FieldError message={errors.phone} />
+            {errors.phone && (
+              <p className="text-xs text-rose-600 font-medium mt-1.5 flex items-center gap-1">
+                <span>⚠️</span>
+                <span>{errors.phone}</span>
+              </p>
+            )}
           </div>
 
           <div className="hidden">
@@ -536,7 +610,7 @@ const Profile = ({ userData = {}, onContinue }) => {
 
       </div>
 
-      <div className="space-y-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xl transition-shadow duration-300 hover:shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:p-10">
+      <div className="space-y-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xl transition-shadow duration-300 hover:shadow-2xl dark:border-slate-800 dark:bg-white sm:p-10">
         <div className="border-b border-slate-200 pb-3">
           <h3 className="text-lg font-bold text-slate-800">Job Preferences</h3>
           <p className="mt-1 text-sm text-slate-500">These details help us calculate accurate job matches.</p>

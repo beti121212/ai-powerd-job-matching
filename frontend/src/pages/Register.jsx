@@ -31,7 +31,7 @@ const Register = () => {
 
   // OTP State
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [otpTimer, setOtpTimer] = useState(60);
+  const [otpTimer, setOtpTimer] = useState(180);
   const canResendOtp = otpTimer === 0;
 
   // UI States
@@ -189,7 +189,6 @@ const Register = () => {
 
       setStep(2);
       setOtpTimer(60);
-      setApiSuccess('OTP code sent to your email.');
       showSuccess('Verification code sent successfully.');
     } catch (error) {
       console.error('Registration Error:', error);
@@ -214,9 +213,7 @@ const Register = () => {
         body: JSON.stringify({ email }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setApiSuccess('OTP code sent to your email.');
-      } else {
+      if (!res.ok) {
         setApiError(data.message || 'Failed to send OTP.');
       }
     } catch (otpErr) {
@@ -285,7 +282,7 @@ const Register = () => {
     setApiError('');
     setApiSuccess('');
     await sendOtpRequest(formData.email.trim());
-    setOtpTimer(60);
+    setOtpTimer(180);
     setOtp(['', '', '', '', '', '']);
     setIsLoading(false);
   };
@@ -398,19 +395,6 @@ const Register = () => {
 
         {/* RIGHT SIDE: Dynamic Form (Step 1, 2, 3) */}
         <div className="md:col-span-7 bg-white p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-center relative min-h-full">
-
-          {/* API Notifications */}
-          {apiError && (
-            <div className="mb-4 sm:mb-6 p-3.5 sm:p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center justify-between">
-              <span>{apiError}</span>
-            </div>
-          )}
-
-          {apiSuccess && (
-            <div className="mb-4 sm:mb-6 p-3.5 sm:p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
-              {apiSuccess}
-            </div>
-          )}
 
           {/* STEP 1: Registration Credentials Form */}
           {step === 1 && (
@@ -579,15 +563,15 @@ const Register = () => {
                   {otpTimer > 0 ? (
                     <p>Resend code in <span className="text-blue-600 font-bold">{formatOtpTime(otpTimer)}</span></p>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-red-600 font-bold">
+                    <span className="inline-flex items-center gap-1.5 text-red-600 font-bold italic">
                       OTP expired —
                       <button
                         type="button"
                         onClick={handleResendOtp}
                         disabled={isLoading}
-                        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer"
+                        className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-800 font-bold italic hover:underline cursor-pointer"
                       >
-                        <RefreshCw className="w-3.5 h-3.5" /> ኮድ እንደገና ላክ (Resend OTP)
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Resend OTP
                       </button>
                     </span>
                   )}

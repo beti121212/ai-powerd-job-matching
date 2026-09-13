@@ -10,6 +10,11 @@
   to { transform: scaleX(0); }
 }
 
+@keyframes toastCountdown {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
 /* The employer workspace keeps only its dark-mode action in the secondary
    header; the global navigation owns search, notifications, company identity,
    and logout. */
@@ -44,6 +49,7 @@ html,
 body,
 #root {
   min-height: 100%;
+  height: auto;
   width: 100%;
   margin: 0;
   background: var(--background);

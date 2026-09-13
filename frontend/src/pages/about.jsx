@@ -73,7 +73,7 @@ export default function AboutPage({ initialSection = "services" }) {
               />
             </aside>
 
-            <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 md:h-[calc(100vh-5rem)] md:p-2">
+            <main className="min-w-0 flex-1 bg-slate-50 md:p-2">
               <AboutView activeTab={activeSection} onNavigate={handleSectionChange} lang={lang} />
             </main>
           </div>

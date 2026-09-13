@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import './login.css';
 import GoogleAuthButton from '../components/GoogleAuthButton';
@@ -6,13 +6,12 @@ import { continueApplicationFlow, getNextOnboardingStep, getPendingApplication }
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../hooks/useToast.js';
 import { scrollToFeedback } from '../utils/scrollHelper.js';
+import { resolveUserRole } from '../utils/authSession';
 import {
-  Sparkles, ShieldCheck, Cpu, Lock, Mail,
-  ArrowRight, Eye, EyeOff, Target, ArrowLeft
+  Sparkles, ShieldCheck, Cpu, Lock,
+  ArrowRight, Eye, EyeOff, Target
 } from 'lucide-react';
 import EmailInputWithDomains from '../components/EmailInputWithDomains';
-
-const LOGIN_OTP_WINDOW_SECONDS = 2 * 60;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -23,38 +22,19 @@ const Login = () => {
   // Redirect or success message passed from Register step
   const successMessage = location.state?.message || '';
 
-  const [otpStep, setOtpStep] = useState(1); // 1 = credentials, 2 = OTP code
-
   // Form State
   const [formData, setFormData] = useState({
     emailOrPhone: '',
     password: '',
-    otp: ['', '', '', '', '', '']
   });
 
   // UI States
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [apiError, setApiError] = useState('');
-  const [apiSuccess, setApiSuccess] = useState(successMessage);
-  const [otpTimer, setOtpTimer] = useState(60);
-  const otpInputRefs = useRef([]);
 
   const API_URL = import.meta.env.VITE_BACKEND_URL || '/api';
-  const accountNotFound = /no account found|account not found|not registered/i.test(apiError);
-
-  useEffect(() => {
-    if (otpStep !== 2 || otpTimer <= 0) return undefined;
-    const timer = window.setInterval(() => setOtpTimer((value) => Math.max(0, value - 1)), 1000);
-    return () => window.clearInterval(timer);
-  }, [otpStep, otpTimer]);
-
-  useEffect(() => {
-    if (otpStep !== 2) return undefined;
-    const focusTimer = window.setTimeout(() => otpInputRefs.current[0]?.focus(), 0);
-    return () => window.clearTimeout(focusTimer);
-  }, [otpStep]);
+  const AUTH_API_URL = `${API_URL.replace(/\/$/, '')}/auth`;
 
   const validateForm = () => {
     const nextErrors = {};
@@ -71,7 +51,7 @@ const Login = () => {
 
   const navigateByRole = (role, sessionUser = {}) => {
     const email = String(sessionUser?.email || formData.emailOrPhone || '').trim().toLowerCase();
-    const normalizedRole = (email === 'tekebaaweke32@gmail.com' ? 'admin' : (role || '').toLowerCase().replace(/[\s-]+/g, '_'));
+    const normalizedRole = resolveUserRole({ email, role: role || sessionUser?.role || sessionUser?.userType });
     const pending = getPendingApplication();
     const pendingJobId = location.state?.jobId || pending?.jobId;
     const seekerRoles = ['job_seeker', 'seeker', 'jobseeker', 'user', 'employee'];
@@ -112,151 +92,56 @@ const Login = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: null }));
-    if (apiError) setApiError('');
   };
 
-  const handleOtpChange = (element, index) => {
-    if (isNaN(element.value)) return false;
-
-    const newOtp = [...formData.otp];
-    newOtp[index] = element.value;
-    setFormData((prev) => ({ ...prev, otp: newOtp }));
-
-    if (element.value !== '' && element.nextSibling) {
-      element.nextSibling.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (e, index) => {
-    if (e.key === 'Backspace' && !formData.otp[index] && index > 0) {
-      const previousInput = e.target.previousSibling;
-      if (previousInput) previousInput.focus();
-    }
-  };
-
-  const openOtpStep = (email, retryAfterSeconds, message = 'A login code was already sent to your email. Please enter it below to continue.') => {
-    setFormData((previous) => ({
-      ...previous,
-      emailOrPhone: email || previous.emailOrPhone,
-      otp: ['', '', '', '', '', ''],
-    }));
-    setOtpTimer(Number(retryAfterSeconds) || LOGIN_OTP_WINDOW_SECONDS);
-    setOtpStep(2);
-    setApiError('');
-    setApiSuccess(message);
-  };
 
   const handlePasswordLogin = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setApiError('');
 
     try {
-      const res = await fetch(`${API_URL.replace(/\/$/, '')}/login-init`, {
+      const res = await fetch(`${AUTH_API_URL}/login-init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.emailOrPhone.trim().toLowerCase(), password: formData.password }),
       });
       const data = await res.json().catch(() => ({}));
+
       if (res.status === 403 && data.requires_verification) {
         navigate('/verify-otp', {
           state: {
             email: data.email || formData.emailOrPhone.trim().toLowerCase(),
-            message: data.message
+            message: data.message,
           }
         });
         return;
       }
-      const alreadySent = res.status === 429 || data.requires_otp || data.message?.toLowerCase().includes('login code was already sent');
-      if (alreadySent) {
-        openOtpStep(data.email, data.retry_after_seconds);
+
+      if (res.status === 429 || data.requires_otp || data.message?.toLowerCase().includes('login code was already sent')) {
+        navigate('/verify-otp', {
+          state: {
+            email: data.email || formData.emailOrPhone.trim().toLowerCase(),
+            message: data.message || 'A login code was already sent to your email. Please enter it below to continue.'
+          }
+        });
         return;
       }
-      if (!res.ok) throw new Error(data.message || 'Unable to send login OTP.');
+
+      if (!res.ok) throw new Error(data.message || data.error || 'Unable to send login OTP.');
       if (data.requires_otp || data.success) {
-        openOtpStep(data.email, LOGIN_OTP_WINDOW_SECONDS, `We sent a verification code to ${(data.email || formData.emailOrPhone).trim().toLowerCase()}.`);
+        navigate('/verify-otp', {
+          state: {
+            email: data.email || formData.emailOrPhone.trim().toLowerCase(),
+            message: `We sent a verification code to ${(data.email || formData.emailOrPhone).trim().toLowerCase()}.`
+          }
+        });
         showSuccess('Verification code sent successfully.');
         return;
       }
     } catch (error) {
-      const response = error.response;
-      if (response?.status === 403 && response.data?.requiresVerification) {
-        navigate('/verify-otp', { state: { email: response.data.email || formData.emailOrPhone.trim().toLowerCase() } });
-        return;
-      }
-      setApiError(response?.data?.message || 'Unable to sign in. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendLoginOtp = async () => {
-    if (otpTimer > 0 || isLoading) return;
-    setIsLoading(true);
-    setApiError('');
-    try {
-      const res = await fetch(`${API_URL.replace(/\/$/, '')}/auth/resend-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.emailOrPhone.trim(), purpose: 'login' }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const alreadySent = res.status === 429 || data.requires_otp || data.message?.toLowerCase().includes('login code was already sent');
-        if (alreadySent) {
-          openOtpStep(data.email, data.retry_after_seconds);
-          return;
-        }
-        if (data.retry_after_seconds) setOtpTimer(data.retry_after_seconds);
-        throw new Error(data.message || 'Unable to resend login OTP.');
-      }
-      setOtpTimer(LOGIN_OTP_WINDOW_SECONDS);
-      setApiSuccess('A new verification code was sent to your email.');
-    } catch (error) {
-      setApiError(error.message || 'Unable to resend login OTP.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Submit OTP Verification for Login
-  const handleVerifyOtpLogin = async (e) => {
-    e.preventDefault();
-    const otpCode = formData.otp.join('');
-    if (otpCode.length < 6) {
-      setApiError('Please enter the complete 6-digit OTP code.');
-      return;
-    }
-
-    setIsLoading(true);
-    setApiError('');
-
-    try {
-      const res = await fetch(`${API_URL.replace(/\/$/, '')}/verify-login-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.emailOrPhone.trim(),
-          otp: otpCode
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok) {
-        if (data.token) localStorage.setItem('token', data.token);
-        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-        setSession({ token: data.token, user: data.user });
-
-        navigateByRole(data.user?.role, data.user);
-      } else {
-        setApiError(data.message || 'Invalid or expired OTP code.');
-      }
-    } catch (err) {
-      console.error('OTP Verify Error:', err);
-      setApiError(err.response?.data?.message || 'Invalid or expired OTP code.');
+      showError(error.message || 'Unable to sign in. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -347,30 +232,8 @@ const Login = () => {
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Sign in to continue</h2>
           </div>
 
-          {/* Notifications */}
-
-          {apiError && (
-            <div className={`mb-4 rounded-xl border p-3.5 text-xs font-semibold sm:p-4 ${accountNotFound ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-red-200 bg-red-50 text-red-700'}`} role="alert">
-              {accountNotFound ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span>We couldn&apos;t find an account for this email. Please create an account first.</span>
-                  <Link to="/register" className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg bg-blue-600 px-3 py-2 font-bold text-white transition hover:bg-blue-700">
-                    Create Account <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              ) : apiError}
-            </div>
-          )}
-
-          {apiSuccess && (
-            <div className="mb-4 p-3.5 sm:p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
-              {apiSuccess}
-            </div>
-          )}
-
           {/* FORM 1: Password-Based Login */}
-          {otpStep === 1 && (
-            <form onSubmit={handlePasswordLogin} noValidate className="space-y-4 sm:space-y-5">
+          <form onSubmit={handlePasswordLogin} noValidate className="space-y-4 sm:space-y-5">
 
               {/* EMAIL INPUT */}
               <div>
@@ -436,67 +299,6 @@ const Login = () => {
                 )}
               </button>
             </form>
-          )}
-
-          {/* FORM 2: OTP-Based Login */}
-          {otpStep === 2 && (
-            <div>
-              <form onSubmit={handleVerifyOtpLogin} className="space-y-5">
-                  <button
-                    type="button"
-                    onClick={() => { setOtpStep(1); setApiError(''); setApiSuccess(''); }}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition mb-2"
-                  >
-                    <ArrowLeft className="w-4 h-4" /> Back to Sign In
-                  </button>
-
-                  <div className="text-center">
-                    <h2 className="text-lg font-black text-slate-900">Enter Verification Code</h2>
-                    <p className="mt-1 text-xs text-slate-500">We sent a verification code to {formData.emailOrPhone.trim().toLowerCase()}.</p>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-1.5 sm:gap-2 max-w-sm mx-auto">
-                    {formData.otp.map((digit, index) => (
-                      <input
-                        key={index}
-                        ref={(element) => { otpInputRefs.current[index] = element; }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength="1"
-                        value={digit}
-                        onChange={(e) => handleOtpChange(e.target, index)}
-                        onKeyDown={(e) => handleOtpKeyDown(e, index)}
-                        className="w-10 sm:w-12 h-12 sm:h-14 text-center font-bold text-lg sm:text-xl rounded-xl border border-slate-300 bg-slate-50 focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition outline-none"
-                      />
-                    ))}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full py-3.5 sm:py-4 px-6 brand-bg hover:opacity-90 text-white rounded-xl font-extrabold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-3 transition shadow-lg shadow-[#56a2d8]/25 active:scale-[0.98] cursor-pointer disabled:opacity-70"
-                  >
-                    {isLoading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <span>Verify &amp; Continue</span>
-                    )}
-                  </button>
-
-                  <button type="button" onClick={handleResendLoginOtp} disabled={otpTimer > 0 || isLoading} className="mx-auto block min-h-11 px-3 text-xs font-bold text-blue-600 disabled:text-slate-400">
-                    {otpTimer > 0 ? `Resend Code in ${otpTimer}s` : 'Resend Code'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setOtpStep(1); setApiError(''); setApiSuccess(''); }}
-                    className="mx-auto block min-h-11 px-3 text-xs font-bold text-slate-500 hover:text-slate-800"
-                  >
-                    Back to Sign In
-                  </button>
-                </form>
-            </div>
-          )}
 
           {/* SOCIAL BUTTONS */}
           <div className="mt-8 border-t border-slate-200 pt-6">

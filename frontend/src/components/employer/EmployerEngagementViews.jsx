@@ -1,45 +1,433 @@
-import { useEffect, useState } from 'react';
-import { Bell, Check, MessageCircle, Save, Settings } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, Check, Save, Settings } from 'lucide-react';
 import api from '../../services/api';
 
-const fallbackMessages = [{ id: 'm-1', from: 'Mekdes Tadesse', subject: 'Interview availability', body: 'I am available Thursday afternoon for the next interview stage.', read: false }];
 const fallbackNotifications = [{ id: 'n-1', title: 'New candidate match', body: 'A registered seeker matches your Senior React Developer role at 94%.', read: false }];
 
 function read(key, fallback) { try { return JSON.parse(localStorage.getItem(key) || 'null') || fallback; } catch { return fallback; } }
 
 export function EmployerMessages() {
-  const [messages, setMessages] = useState(fallbackMessages);
-  const [reply, setReply] = useState('');
-  const [notice, setNotice] = useState('');
+  const [search, setSearch] = useState('');
+  const [conversationId, setConversationId] = useState('');
+  const [input, setInput] = useState('');
+  const [attachment, setAttachment] = useState(null);
+  const fileInput = useRef(null);
+  const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    api.get('/employer/messages')
-      .then(({ data }) => setMessages(data?.messages?.length ? data.messages : fallbackMessages))
-      .catch(() => setMessages(read('employerMessages', fallbackMessages)));
+  const conversations = useMemo(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('mockConversations') || 'null');
+      return Array.isArray(stored) && stored.length ? stored : [
+        {
+          id: 'conversation-601',
+          companyName: 'Mekdes Tadesse',
+          employerName: 'Hiring Team',
+          jobTitle: 'Frontend Developer',
+          lastMessage: 'I am available Thursday afternoon for the next interview stage.',
+          lastMessageTime: '10:30 AM',
+          unreadCount: 2,
+          messages: [
+            {
+              id: 'message-1',
+              sender: 'candidate',
+              text: 'Hello, I am available Thursday afternoon for the next interview stage.',
+              time: '10:20 AM',
+            },
+            {
+              id: 'message-2',
+              sender: 'employer',
+              text: 'Great, we will send a calendar invite shortly.',
+              time: '10:24 AM',
+            },
+            {
+              id: 'message-3',
+              sender: 'candidate',
+              text: 'I am available Thursday afternoon for the next interview stage.',
+              time: '10:30 AM',
+            },
+          ],
+        },
+        {
+          id: 'conversation-602',
+          companyName: 'Abel Bekele',
+          employerName: 'Talent Team',
+          jobTitle: 'Backend Developer',
+          lastMessage: 'Thank you for your application. Our team will be in touch soon.',
+          lastMessageTime: 'Yesterday',
+          unreadCount: 0,
+          messages: [
+            {
+              id: 'message-4',
+              sender: 'employer',
+              text: 'Thank you for your application. Our team will be in touch soon.',
+              time: 'Yesterday',
+            },
+          ],
+        },
+        {
+          id: 'conversation-603',
+          companyName: 'Hana Solomon',
+          employerName: 'Engineering Manager',
+          jobTitle: 'Full Stack Software Engineer',
+          lastMessage: 'Please share a convenient time for a follow-up.',
+          lastMessageTime: 'Aug 22',
+          unreadCount: 1,
+          messages: [
+            {
+              id: 'message-5',
+              sender: 'candidate',
+              text: 'I enjoyed learning more about the engineering team.',
+              time: 'Aug 22',
+            },
+            {
+              id: 'message-6',
+              sender: 'employer',
+              text: 'Please share a convenient time for a follow-up.',
+              time: 'Aug 22',
+            },
+          ],
+        },
+      ];
+    } catch {
+      return [
+        {
+          id: 'conversation-601',
+          companyName: 'Mekdes Tadesse',
+          employerName: 'Hiring Team',
+          jobTitle: 'Frontend Developer',
+          lastMessage: 'I am available Thursday afternoon for the next interview stage.',
+          lastMessageTime: '10:30 AM',
+          unreadCount: 2,
+          messages: [
+            {
+              id: 'message-1',
+              sender: 'candidate',
+              text: 'Hello, I am available Thursday afternoon for the next interview stage.',
+              time: '10:20 AM',
+            },
+            {
+              id: 'message-2',
+              sender: 'employer',
+              text: 'Great, we will send a calendar invite shortly.',
+              time: '10:24 AM',
+            },
+            {
+              id: 'message-3',
+              sender: 'candidate',
+              text: 'I am available Thursday afternoon for the next interview stage.',
+              time: '10:30 AM',
+            },
+          ],
+        },
+        {
+          id: 'conversation-602',
+          companyName: 'Abel Bekele',
+          employerName: 'Talent Team',
+          jobTitle: 'Backend Developer',
+          lastMessage: 'Thank you for your application. Our team will be in touch soon.',
+          lastMessageTime: 'Yesterday',
+          unreadCount: 0,
+          messages: [
+            {
+              id: 'message-4',
+              sender: 'employer',
+              text: 'Thank you for your application. Our team will be in touch soon.',
+              time: 'Yesterday',
+            },
+          ],
+        },
+        {
+          id: 'conversation-603',
+          companyName: 'Hana Solomon',
+          employerName: 'Engineering Manager',
+          jobTitle: 'Full Stack Software Engineer',
+          lastMessage: 'Please share a convenient time for a follow-up.',
+          lastMessageTime: 'Aug 22',
+          unreadCount: 1,
+          messages: [
+            {
+              id: 'message-5',
+              sender: 'candidate',
+              text: 'I enjoyed learning more about the engineering team.',
+              time: 'Aug 22',
+            },
+            {
+              id: 'message-6',
+              sender: 'employer',
+              text: 'Please share a convenient time for a follow-up.',
+              time: 'Aug 22',
+            },
+          ],
+        },
+      ];
+    }
   }, []);
 
-  const sendReply = async (message) => {
-    if (!reply.trim()) return;
-    const payload = {
-      candidateId: message.candidateId || message.userId || message.id,
-      subject: message.subject || 'Reply',
-      body: reply.trim(),
-    };
-
+  const conversationItems = useMemo(() => {
     try {
-      await api.post('/employer/messages', payload);
-      setNotice('Reply sent');
-      setReply('');
-      const refreshed = await api.get('/employer/messages');
-      setMessages(refreshed.data?.messages?.length ? refreshed.data.messages : messages);
+      const stored = JSON.parse(localStorage.getItem('mockConversations') || 'null');
+      if (Array.isArray(stored) && stored.length) {
+        return stored;
+      }
     } catch {
-      localStorage.setItem('employerMessages', JSON.stringify([{ ...message, lastReply: payload.body }, ...messages.filter((item) => item.id !== message.id)]));
-      setNotice('Reply queued locally');
-      setReply('');
+      // Fall through to seeded conversations.
+    }
+
+    return conversations;
+  }, [conversations]);
+
+  const filteredConversations = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return conversationItems;
+
+    return conversationItems.filter((conversation) =>
+      [conversation.companyName, conversation.employerName, conversation.jobTitle, conversation.lastMessage].some((value) =>
+        String(value || '').toLowerCase().includes(query),
+      ),
+    );
+  }, [conversationItems, search]);
+
+  const activeConversation = useMemo(
+    () => conversationItems.find((item) => item.id === conversationId) || null,
+    [conversationId, conversationItems],
+  );
+
+  const messages = useMemo(() => activeConversation?.messages || [], [activeConversation]);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, conversationId]);
+
+  const saveConversations = (items) => {
+    localStorage.setItem('mockConversations', JSON.stringify(items));
+  };
+
+  const markConversationRead = (id) => {
+    const next = conversationItems.map((conversation) =>
+      String(conversation.id) === String(id)
+        ? {
+            ...conversation,
+            unreadCount: 0,
+            messages: conversation.messages.map((message) =>
+              message.sender === 'candidate'
+                ? { ...message, isRead: true }
+                : message,
+            ),
+          }
+        : conversation,
+    );
+
+    saveConversations(next);
+    return next;
+  };
+
+  const handleSend = (event) => {
+    event.preventDefault();
+    const text = input.trim();
+    if (!text && !attachment) return;
+
+    const nextMessages = [
+      ...messages,
+      {
+        id: `message-${Date.now()}`,
+        sender: 'employer',
+        text: text || `Shared ${attachment.name}`,
+        time: 'Just now',
+        isRead: true,
+      },
+    ];
+
+    const nextConversationItems = conversationItems.map((item) =>
+      item.id === conversationId
+        ? {
+            ...item,
+            messages: nextMessages,
+            unreadCount: 0,
+            lastMessage: text || `Shared ${attachment.name}`,
+            lastMessageTime: 'Just now',
+          }
+        : item,
+    );
+
+    saveConversations(nextConversationItems);
+    setInput('');
+    setAttachment(null);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSend(event);
     }
   };
 
-  return <ViewFrame icon={MessageCircle} title="Messages" subtitle="Keep conversations with candidates moving.">{messages.map((message) => <article key={message.id} className="rounded-2xl border border-slate-200 p-5"><div className="flex items-start justify-between gap-3"><div><h3 className="font-black text-slate-900">{message.subject || `Message from ${message.fromName || message.from || 'Candidate'}`}</h3><p className="mt-1 text-xs font-bold text-blue-600">{message.fromName || message.from || message.fromEmail || 'Candidate'}</p></div>{!message.isRead && <span className="rounded-full bg-blue-100 px-2 py-1 text-[10px] font-black text-blue-700">NEW</span>}</div><p className="mt-4 text-sm leading-6 text-slate-600">{message.body}</p><div className="mt-4 flex gap-2"><input value={reply} onChange={(event) => setReply(event.target.value)} placeholder="Write a reply" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500" /><button onClick={() => sendReply(message)} className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white">Reply</button></div></article>)}{notice && <p className="text-sm font-bold text-emerald-600">{notice}</p>}</ViewFrame>;
+  const openConversation = (id) => {
+    const next = markConversationRead(id);
+    saveConversations(next);
+    setConversationId(id);
+  };
+
+  if (conversationId && activeConversation) {
+    return (
+      <main className="information-page min-h-[70vh] bg-slate-50 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="mx-auto flex min-h-[70vh] max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50 p-4">
+            <button
+              type="button"
+              onClick={() => setConversationId('')}
+              className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-(--brand-deep) hover:underline"
+            >
+              <span className="text-base">←</span>
+              Back to Messages
+            </button>
+            <div className="ml-auto text-right">
+              <h1 className="text-base font-black text-slate-900">{activeConversation.companyName}</h1>
+              <p className="text-xs font-semibold text-slate-500">
+                {activeConversation.jobTitle} · {activeConversation.employerName}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/60 p-4 sm:p-6">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex flex-col ${message.sender === 'employer' ? 'items-end' : 'items-start'}`}
+              >
+                <span className="mb-1 px-1 text-[11px] font-bold text-slate-400">
+                  {message.sender === 'employer' ? 'Employer' : 'Applicant'}
+                </span>
+                <p
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.sender === 'employer' ? 'rounded-br-sm bg-slate-900 text-white' : 'rounded-bl-sm border border-slate-200 bg-white text-slate-800'}`}
+                >
+                  {message.text}
+                </p>
+                <span className="mt-1 px-1 text-[11px] text-slate-400">{message.time}</span>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={handleSend} className="border-t border-slate-200 bg-white p-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                aria-label="Attach a file"
+                onClick={() => fileInput.current?.click()}
+                className="min-h-11 min-w-11 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+              >
+                <span className="flex items-center justify-center">📎</span>
+              </button>
+              <input
+                ref={fileInput}
+                type="file"
+                onChange={(event) => setAttachment(event.target.files?.[0] || null)}
+                className="hidden"
+              />
+              <input
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder="Type a message..."
+                className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-(--brand-primary)"
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() && !attachment}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-(--brand-primary) px-4 text-sm font-bold text-white hover:bg-(--brand-primary-hover) disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                <span className="text-base">➤</span>
+                Send
+              </button>
+            </div>
+            {attachment && (
+              <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                <span>Selected file: {attachment.name}</span>
+                <button
+                  type="button"
+                  aria-label="Remove selected file"
+                  onClick={() => setAttachment(null)}
+                  className="text-slate-500 hover:text-red-600"
+                >
+                  <span className="text-base">×</span>
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="information-page min-h-[70vh] bg-slate-50 px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <div className="mx-auto max-w-4xl">
+        <header>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900">Messages</h1>
+              <p className="mt-2 text-sm text-slate-500">Stay connected with applicants and track your conversations.</p>
+            </div>
+          </div>
+        </header>
+
+        <label className="mt-6 block">
+          <span className="sr-only">Search conversations</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search conversations..."
+            className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 shadow-sm outline-none focus:border-(--brand-primary)"
+          />
+        </label>
+
+        <section className="mt-5 space-y-3" aria-label="Conversation list">
+          {filteredConversations.length > 0 ? (
+            filteredConversations.map((conversation) => (
+              <button
+                key={conversation.id}
+                type="button"
+                onClick={() => openConversation(conversation.id)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-(--brand-primary) hover:shadow-md"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h2
+                      className={`truncate text-base text-slate-900 ${conversation.unreadCount ? 'font-black' : 'font-bold'}`}
+                    >
+                      {conversation.companyName}
+                    </h2>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">{conversation.jobTitle}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-400">{conversation.lastMessageTime}</span>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p
+                    className={`truncate text-sm ${conversation.unreadCount ? 'font-semibold text-slate-700' : 'text-slate-500'}`}
+                  >
+                    {conversation.lastMessage}
+                  </p>
+                  {conversation.unreadCount > 0 && (
+                    <span className="shrink-0 rounded-full bg-(--brand-soft) px-2.5 py-1 text-xs font-black text-(--brand-deep)">
+                      {conversation.unreadCount} unread
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+              <h2 className="text-base font-black text-slate-900">No conversations found.</h2>
+              <p className="mt-2 text-sm text-slate-500">Try searching using a different applicant or job name.</p>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
 }
 
 export function EmployerNotifications() {
